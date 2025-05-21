@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Millo's "Hit the Wall" - Survival</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Press Start 2P', 'Courier New', monospace;
+            margin: 0;
+            overflow: hidden;
+            background-color: #000000; 
+            color: #E0E0FF; 
+            font-size: 10px; 
+        }
+        #gameContainer {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background-color: transparent; 
+        }
+        
+        .screen-panel { 
+            background-color: rgba(15, 15, 30, 0.92); 
+            border: 2px solid #505070; 
+            padding: 20px;
+            border-radius: 0px; 
+            box-shadow: 4px 4px 0px #202040; 
+            max-width: 90%;
+            width: auto; 
+            min-width: 300px; 
+            color: #FFFFFF;
+            text-align: center;
+            margin-bottom: 10px; 
+            position: relative; 
+            z-index: 5; 
+        }
+        #titleScreen { 
+            max-width: 550px; 
+            padding: 25px; 
+            cursor: pointer; /* Indicate it's clickable */
+        }
+        #logoCanvas {
+            width: 480px; 
+            max-width: 100%; 
+            height: 180px; 
+            margin-bottom: 25px; 
+            image-rendering: pixelated;
+            border: 2px solid #202040; 
+            background-color: #080810; 
+        }
+        .title-text-small { 
+             font-size: 18px;
+             text-shadow: 1px 1px 0px #DDA0DD, 2px 2px 0px #800080; 
+             color: #FFF0F5; 
+             margin-bottom: 10px;
+             line-height: 1.2;
+        }
+        .screen-panel p {
+            font-size: 10px; 
+            line-height: 1.6;
+        }
+        #pressStartPrompt {
+            font-size: 16px; 
+            color: #FFFF00; 
+            text-shadow: 1px 1px 0px #CCAA00;
+            margin-top: 30px; 
+            animation: blinkPrompt 1.2s infinite;
+        }
+        @keyframes blinkPrompt {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .controls-text {
+            font-size: 10px; 
+            color: #B0B0D0; 
+            margin-top: 20px; 
+        }
+        .controls-text strong {
+            color: #FFFF88; 
+        }
+
+        #gameplayScreen { 
+            width: 100vw;
+            height: 100vh;
+            position: absolute; 
+            top: 0;
+            left: 0;
+            display: flex; 
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; 
+            z-index: 2; 
+        }
+        #gameCanvas { 
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none; 
+            background-color: #000;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            display: block; 
+            z-index: 1; 
+        }
+        #gameUiContainer { 
+            width: 90%;
+            max-width: 450px; 
+            margin-top: 10px; 
+            margin-bottom: 8px;
+            z-index: 3; 
+            position: relative; 
+            pointer-events: none; 
+        }
+        #gameUiContainer > * {
+            pointer-events: auto; 
+        }
+        .game-stats {
+            display: flex;
+            justify-content: space-around;
+            align-items: center; 
+            width: 100%;
+            font-size: 12px; 
+            color: #E0E0FF; 
+            background-color: rgba(15, 15, 30, 0.85); 
+            padding: 5px 8px; 
+            border: 1px solid #505070;
+            border-radius: 0px; 
+            margin-bottom: 5px; 
+            box-shadow: 2px 2px 0px #202040;
+        }
+        #timerProgressBarContainer {
+            width: 100px; 
+            height: 12px; 
+            background-color: #333; 
+            border: 1px solid #505070;
+            border-radius: 0px;
+            overflow: hidden; 
+            margin-left: 10px; 
+        }
+        #timerProgressBar {
+            width: 100%; 
+            height: 100%;
+            background-color: #4CAF50; 
+            transition: width 0.2s linear, background-color 0.5s linear; 
+        }
+        #messageDisplay {
+            font-size: 10px; 
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+            background-color: rgba(15, 15, 30, 0.85); 
+            padding: 4px 8px;
+            border-radius: 0px;
+            border: 1px solid #505070;
+            min-height: 2.5em; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            box-shadow: 2px 2px 0px #202040;
+        }
+        
+        .loading-dots span { animation: blink 1.4s infinite both; }
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
+
+        #finalScoreDisplay {
+            font-size: 32px; 
+            color: #FFFF00; 
+            text-shadow: 2px 2px 0px #FF8C00; 
+            margin: 8px 0;
+        }
+        
+        .pixel-button { 
+            background-color: #4A90E2; 
+            color: white;
+            padding: 8px 16px; 
+            border-radius: 0px;
+            border: 2px solid #1E63B0; 
+            box-shadow: 2px 2px 0px #1E63B0; 
+            transition: all 0.05s ease-out; 
+            cursor: pointer;
+            font-size: 12px; 
+            line-height: 1.2;
+            margin: 5px; 
+        }
+        .pixel-button:hover, .pixel-button:active { 
+            background-color: #357ABD;
+            box-shadow: 1px 1px 0px #1E63B0;
+            transform: translate(1px, 1px); 
+        }
+        .pixel-button.green {
+             background-color: #50C878; 
+             border-color: #2E8B57;
+             box-shadow: 2px 2px 0px #2E8B57;
+        }
+        .pixel-button.green:hover, .pixel-button.green:active {
+            background-color: #3CB371;
+            box-shadow: 1px 1px 0px #2E8B57;
+        }
+
+        #onScreenControls {
+            display: none; 
+            position: fixed;
+            bottom: 20px; 
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10; 
+            padding: 8px;
+            background-color: rgba(10,10,20,0.75);
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .control-dpad {
+            display: grid;
+            grid-template-areas: 
+                ". up ."
+                "left . right"
+                ". down .";
+            gap: 8px; 
+        }
+        .control-button { 
+            width: 60px; 
+            height: 60px;
+            background-color: #303050; 
+            border: 2px solid #7070A0; 
+            box-shadow: 0px 2px 0px #181828;
+            color: #E0E0FF;
+            font-size: 28px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none; 
+            -webkit-user-select: none; 
+            touch-action: manipulation; 
+            border-radius: 4px; 
+        }
+        .control-button.active, .control-button:active { 
+            background-color: #505070; 
+            box-shadow: inset 0px 1px 2px #181828; 
+            transform: translateY(1px);
+        }
+        #arrowUp { grid-area: up; }
+        #arrowLeft { grid-area: left; }
+        #arrowRight { grid-area: right; }
+        #arrowDown { grid-area: down; }
+
+        @media (max-width: 768px) { 
+            #onScreenControls { display: block; }
+            .controls-text { display: none; }
+            #titleScreen { padding: 15px; max-width: 95%; } 
+            #logoCanvas { width: 90%; height: auto; aspect-ratio: 450 / 180; margin-bottom: 20px;} 
+            #pressStartPrompt { font-size: 14px; margin-top: 25px;}
+            .screen-panel p, #titleScreen p { font-size: 10px; } 
+            .game-stats { font-size: 10px; max-width: 90%; } 
+            #messageDisplay { font-size: 10px; max-width: 90%; }
+            #finalScoreDisplay { font-size: 28px; }
+            .pixel-button { font-size: 10px; padding: 6px 12px; }
+            #timerProgressBarContainer { width: 80px; height: 10px; }
+        }
+         @media (max-height: 450px) and (orientation: landscape) { 
+            #onScreenControls { bottom: 5px; transform: translateX(-50%) scale(0.75); } 
+            .game-stats { font-size: 10px; padding: 4px 8px; }
+            #messageDisplay { font-size: 9px; padding: 3px 6px; }
+            #timerProgressBarContainer { width: 70px; height: 8px; }
+             #logoCanvas { height: 150px; margin-bottom: 15px;} 
+             #pressStartPrompt { margin-top: 15px; font-size: 12px;}
+             .controls-text { margin-top: 10px; font-size: 8px;}
+        }
+    </style>
+</head>
+<body class="select-none">
+    <audio id="menuMusic" loop src="menu_music.mp3"></audio> 
+    <audio id="gameplayMusic" loop src="millo_theme.mp3"></audio> 
+    <audio id="endMenuMusic" loop src="end-menu-music.mp3"></audio>
+    <audio id="cdPickupSound" src="cd.mp3"></audio>
+    <audio id="goldenCdPickupSound" src="golden-cd.mp3"></audio>
+
+    <div id="gameContainer">
+        <div id="titleScreen" class="screen-panel"> 
+            <canvas id="logoCanvas"></canvas>
+            <p id="pressStartPrompt">PRESS ENTER TO START</p>
+            <p class="controls-text"><strong class="text-yellow-300">Controls:</strong> Arrow Keys or W/A/S/D</p>
+        </div>
+
+        <div id="gameplayScreen" class="hidden"> 
+            <canvas id="gameCanvas"></canvas> 
+            <div id="gameUiContainer">
+                <div class="game-stats"> 
+                    <div id="timerDisplay">Time: 30</div> 
+                    <div id="timerProgressBarContainer">
+                        <div id="timerProgressBar"></div>
+                    </div>
+                    <div id="scoreDisplay">CDs: 0</div>
+                </div>
+                <p id="messageDisplay" class="min-h-[2em]"></p>
+            </div>
+        </div>
+        
+        <div id="gameOverScreen" class="hidden screen-panel p-5">
+            <h2 class="title-text-small" style="font-size: 20px; margin-bottom: 8px;">Game Over!</h2> 
+            <div id="scoreSection">
+                <p style="font-size:10px;">You collected:</p>
+                <div id="finalScoreDisplay">0</div>
+                <p style="font-size:10px;">CDs!</p>
+                <img id="collectedCDImage" src="https://placehold.co/50x50/C0C0C0/FFFFFF?text=CD" alt="Collected CD" class="mx-auto my-2 rounded-full border-2 border-gray-500" style="width:50px; height:50px;"> 
+                <p id="gameOverMessage" class="mb-3 min-h-[2em] flex items-center justify-center" style="font-size:10px;"></p>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row justify-center items-center"> 
+                <button id="restartButton" class="pixel-button green">Play Again?</button>
+                <button id="shareScoreButton" class="pixel-button">Share Score</button>
+                <a href="https://open.spotify.com/artist/5DqBbDMaCLIJEswvNl07Ys?si=hz3sJ7GZQ4mpl0VGdtiNKg" target="_blank" id="listenMusicButton" class="pixel-button" style="background-color: #1DB954; border-color: #107A38; box-shadow: 2px 2px 0px #107A38;">Listen to Millo!</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="onScreenControls">
+        <div class="control-dpad">
+            <button id="arrowUp" class="control-button">▲</button>
+            <button id="arrowLeft" class="control-button">◀</button>
+            <button id="arrowRight" class="control-button">▶</button>
+            <button id="arrowDown" class="control-button">▼</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- DOM Elements ---
+        const titleScreen = document.getElementById('titleScreen');
+        const gameplayScreen = document.getElementById('gameplayScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const restartButton = document.getElementById('restartButton');
+        const mainCanvas = document.getElementById('gameCanvas'); 
+        const messageDisplay = document.getElementById('messageDisplay');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const timerProgressBar = document.getElementById('timerProgressBar'); 
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const finalScoreDisplay = document.getElementById('finalScoreDisplay');
+        const collectedCDImage = document.getElementById('collectedCDImage');
+        const gameOverMessage = document.getElementById('gameOverMessage');
+        const logoCanvas = document.getElementById('logoCanvas');
+        const arrowUpButton = document.getElementById('arrowUp');
+        const arrowDownButton = document.getElementById('arrowDown');
+        const arrowLeftButton = document.getElementById('arrowLeft');
+        const arrowRightButton = document.getElementById('arrowRight');
+        const shareScoreButton = document.getElementById('shareScoreButton');
+        const menuMusic = document.getElementById('menuMusic'); 
+        const gameplayMusic = document.getElementById('gameplayMusic'); 
+        const endMenuMusic = document.getElementById('endMenuMusic');
+        const cdPickupSound = document.getElementById('cdPickupSound');
+        const goldenCdPickupSound = document.getElementById('goldenCdPickupSound');
+        
+        // --- Offscreen Canvas for 3D Pixelation ---
+        const offscreenCanvas = document.createElement('canvas'); 
+        const offscreenCtx = offscreenCanvas.getContext('2d');
+
+        // --- Game Configuration ---
+        const RENDER_WIDTH = 160, RENDER_HEIGHT = 120; 
+        const TILE_SIZE = 64; 
+        const FOV = Math.PI / 3, MOVE_SPEED = TILE_SIZE / 9, TURN_SPEED = 0.06, NUM_RAYS = RENDER_WIDTH;
+        const INITIAL_TIME = 30; 
+        const TIME_PER_CD = 5; 
+        const TIME_PER_GOLDEN_CD = 10; 
+        const PA_ANNOUNCEMENT_INTERVAL = 17000;
+        const GOLDEN_CD_SCORE_THRESHOLD = 3;
+        const GOLDEN_CD_POINTS_VALUE = 5; 
+
+        // --- Game State ---
+        let player = { x: 0, y: 0, angle: 0 }, gameMap = [], cdPosition = { x: 0, y: 0, active: true, isGolden: false };
+        let score = 0; 
+        let timeLeft = INITIAL_TIME;
+        let gameRunning = false, gameTimerInterval = null, paAnnouncementTimer = null; 
+        let goldenCDSpawnedThisGame = false;
+        let regularCDsCollected = 0; 
+        let particles = []; 
+
+        // --- Baked-in PA Announcements ---
+        const paAnnouncementsList = [
+            "The pink walls are humming...",
+            "CDs extend your stay.",
+            "Time is... relative here.",
+            "Caution: Floor may be surprisingly green.",
+            "Remember to breathe... or don't.",
+            "Lost items can be found... eventually.",
+            "Enjoy your non-Euclidean shopping experience!",
+            "The food court is experiencing... temporal distortions.",
+            "Please keep all appendages inside the reality.",
+            "Today's special: Existential dread with a side of static."
+        ];
+
+        // --- Colors & Textures ---
+        const ARCADE_PINK_WALL_1 = '#FF69B4', ARCADE_PINK_WALL_2 = '#DB7093'; 
+        const PS1_GREEN_CARPET_1 = '#2E8B57', PS1_GREEN_CARPET_2 = '#228B22'; 
+        const PS1_NIGHT_SKY_1 = '#191970', PS1_NIGHT_SKY_2 = '#000033'; 
+
+        const textures = {
+            wall: createTexture(ARCADE_PINK_WALL_1, ARCADE_PINK_WALL_2, false, true),
+            floor: createTexture(PS1_GREEN_CARPET_1, PS1_GREEN_CARPET_2, true),
+            ceiling: createNightSkyTexture(PS1_NIGHT_SKY_1, PS1_NIGHT_SKY_2),
+            cdSprite: createReflectiveCDSpriteEnhanced(),
+            goldenCdSprite: createGoldenCDSprite()
+        };
+
+        // --- Drawing Functions ---
+        function drawPixelCursiveLogo() { 
+            const ctx = logoCanvas.getContext('2d');
+            const cw = logoCanvas.width;
+            const ch = logoCanvas.height;
+            ctx.imageSmoothingEnabled = false; 
+            ctx.clearRect(0,0,cw,ch);
+
+            const startViewPlayer = { x: TILE_SIZE * 1.5, y: TILE_SIZE * 1.5, angle: Math.PI / 4 }; 
+            const tempOffscreen = document.createElement('canvas');
+            tempOffscreen.width = RENDER_WIDTH;
+            tempOffscreen.height = RENDER_HEIGHT;
+            const tempCtx = tempOffscreen.getContext('2d');
+            tempCtx.imageSmoothingEnabled = false;
+
+            tempCtx.drawImage(textures.ceiling,0,0,RENDER_WIDTH,RENDER_HEIGHT/2);
+            tempCtx.drawImage(textures.floor,0,RENDER_HEIGHT/2,RENDER_WIDTH,RENDER_HEIGHT/2);
+            for(let i=0; i < NUM_RAYS; i++) {
+                const rayAngle = startViewPlayer.angle - FOV/2 + (i/NUM_RAYS) * FOV;
+                let distToWall = 0, hitWall = false, hitEdge = false;
+                const eyeX = Math.cos(rayAngle), eyeY = Math.sin(rayAngle);
+                while(!hitWall && distToWall < TILE_SIZE * 5){ 
+                    distToWall += 2;
+                    const testX = Math.floor((startViewPlayer.x + eyeX * distToWall) / TILE_SIZE);
+                    const testY = Math.floor((startViewPlayer.y + eyeY * distToWall) / TILE_SIZE);
+                    if(testX<0||testX>=MAP_WIDTH||testY<0||testY>=MAP_HEIGHT){hitWall=true; distToWall=TILE_SIZE*5;}
+                    else if(MAP_DATA[testY] && MAP_DATA[testY][testX]===1){ hitWall=true; }
+                }
+                const correctedDist = distToWall * Math.cos(rayAngle - startViewPlayer.angle);
+                const wallHeight = Math.min(RENDER_HEIGHT, (TILE_SIZE / correctedDist) * RENDER_HEIGHT * 0.8); 
+                const wallTop = (RENDER_HEIGHT/2) - wallHeight/2;
+                const wallHitX = startViewPlayer.x + eyeX * distToWall;
+                const wallHitY = startViewPlayer.y + eyeY * distToWall;
+                let textureX = Math.floor(hitEdge ? wallHitX % TILE_SIZE : wallHitY % TILE_SIZE);
+                tempCtx.drawImage(textures.wall, textureX,0,1,TILE_SIZE, i,wallTop,1,wallHeight);
+                const shadeFactor = Math.max(0.1, 1 - (correctedDist/(TILE_SIZE*4)));
+                tempCtx.fillStyle = `rgba(25,0,25,${1-shadeFactor*0.7})`;
+                tempCtx.fillRect(i,wallTop,1,wallHeight);
+            }
+            ctx.drawImage(tempOffscreen, 0, 0, cw, ch); 
+
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            const millosY = ch * 0.35; 
+            ctx.font = "24px 'Press Start 2P'"; 
+            ctx.fillStyle = "#800080"; 
+            ctx.fillText("Millo's", cw * 0.5 + 2, millosY + 2); 
+            ctx.fillStyle = "#FFF0F5"; 
+            ctx.fillText("Millo's", cw * 0.5, millosY);
+
+            const htwY = ch * 0.65; 
+            const hitTheWallFontSize = 38; 
+            ctx.font = `${hitTheWallFontSize}px 'Press Start 2P'`; 
+            
+            const shadowOffset = 3; 
+            ctx.fillStyle = "#FF1493"; 
+            ctx.fillText("Hit the Wall", cw * 0.5 + shadowOffset, htwY + shadowOffset); 
+            ctx.fillStyle = "#FFFF00"; 
+            ctx.fillText("Hit the Wall", cw * 0.5, htwY);
+        }
+
+        function createTexture(c1, c2, isChk = false, isW = false) { 
+            const cvs = document.createElement('canvas'); cvs.width=TILE_SIZE; cvs.height=TILE_SIZE; const ctx=cvs.getContext('2d');
+            if(isChk){const cs=TILE_SIZE/(isW?4:2);for(let y=0;y<(isW?4:2);y++)for(let x=0;x<(isW?4:2);x++){ctx.fillStyle=(x+y)%2===0?c1:c2;ctx.fillRect(x*cs,y*cs,cs,cs);}
+                if(!isW){for(let i=0;i<30;i++){ctx.fillStyle=Math.random()<0.5?c1:c2;ctx.globalAlpha=0.25;ctx.fillRect(Math.random()*TILE_SIZE,Math.random()*TILE_SIZE,1,Math.random()*3+1);}ctx.globalAlpha=1;}}
+            else{ctx.fillStyle=c1;ctx.fillRect(0,0,TILE_SIZE,TILE_SIZE);for(let i=0;i<TILE_SIZE*TILE_SIZE/6;i++){ctx.fillStyle=c2;ctx.globalAlpha=Math.random()*0.5+0.2;ctx.fillRect(Math.random()*TILE_SIZE,Math.random()*TILE_SIZE,1,1);}ctx.globalAlpha=1;}
+            if(isW){ctx.strokeStyle='rgba(0,0,0,0.2)';ctx.lineWidth=1;for(let i=TILE_SIZE/2;i<TILE_SIZE;i+=TILE_SIZE/2){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,TILE_SIZE);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(TILE_SIZE,i);ctx.stroke();}}
+            return cvs;
+        }
+        function createNightSkyTexture(c1,c2){ 
+            const cvs=document.createElement('canvas');cvs.width=TILE_SIZE*2;cvs.height=TILE_SIZE;const ctx=cvs.getContext('2d');
+            const gr=ctx.createLinearGradient(0,0,0,TILE_SIZE);gr.addColorStop(0,c2);gr.addColorStop(0.7,c1);gr.addColorStop(1,c1);ctx.fillStyle=gr;ctx.fillRect(0,0,cvs.width,cvs.height);
+            for(let i=0;i<100;i++){const x=Math.random()*cvs.width,y=Math.random()*cvs.height*0.8,s=Math.random()*1.2+0.3;ctx.fillStyle=`rgba(255,255,${Math.floor(Math.random()*55+200)},${Math.random()*0.6+0.4})`;ctx.beginPath();ctx.arc(x,y,s,0,Math.PI*2);ctx.fill();}
+            return cvs;
+        }
+        function createReflectiveCDSpriteEnhanced(){ 
+            const cvs=document.createElement('canvas');cvs.width=TILE_SIZE;cvs.height=TILE_SIZE;const ctx=cvs.getContext('2d');
+            const cX=TILE_SIZE/2,cY=TILE_SIZE/2,oR=TILE_SIZE*0.45,iR=TILE_SIZE*0.1;
+            const gr=ctx.createRadialGradient(cX,cY,iR,cX,cY,oR);gr.addColorStop(0,'#DDDDFF');gr.addColorStop(0.6,'#A0A0CC');gr.addColorStop(1,'#C0C0EE');ctx.fillStyle=gr;ctx.beginPath();ctx.arc(cX,cY,oR,0,Math.PI*2);ctx.fill();
+            const sC=['rgba(255,0,0,0.2)','rgba(255,165,0,0.2)','rgba(255,255,0,0.2)','rgba(0,128,0,0.2)','rgba(0,0,255,0.2)','rgba(75,0,130,0.2)','rgba(238,130,238,0.2)'];
+            for(let i=0;i<7;i++){ctx.beginPath();const aO=(i/7)*Math.PI*0.3,sA=Math.PI*(0.2+i*0.2)+aO,eA=sA+Math.PI*0.3,r=oR*(0.6+Math.random()*0.3);ctx.arc(cX,cY,r,sA,eA);ctx.strokeStyle=sC[i%sC.length];ctx.lineWidth=TILE_SIZE*0.05*(Math.random()*0.5+0.5);ctx.stroke();}
+            ctx.fillStyle='#202030';ctx.beginPath();ctx.arc(cX,cY,iR,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#101015';ctx.lineWidth=1;ctx.stroke();
+            ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.lineWidth=TILE_SIZE*0.015;ctx.beginPath();ctx.arc(cX,cY,oR,0,Math.PI*2);ctx.stroke();
+            return cvs;
+        }
+        function createGoldenCDSprite(){ 
+            const cvs=document.createElement('canvas');cvs.width=TILE_SIZE;cvs.height=TILE_SIZE;const ctx=cvs.getContext('2d');
+            const cX=TILE_SIZE/2,cY=TILE_SIZE/2,oR=TILE_SIZE*0.45,iR=TILE_SIZE*0.1;
+            const gr=ctx.createRadialGradient(cX,cY,iR*0.5,cX,cY,oR);gr.addColorStop(0,'#FFFFE0');gr.addColorStop(0.5,'#FFD700');gr.addColorStop(1,'#FFA500');ctx.fillStyle=gr;
+            ctx.beginPath();ctx.arc(cX,cY,oR,0,Math.PI*2);ctx.fill();
+            for(let i=0;i<12;i++){ctx.beginPath();const a=(i/12)*Math.PI*2;ctx.moveTo(cX+Math.cos(a)*iR,cY+Math.sin(a)*iR);ctx.lineTo(cX+Math.cos(a+0.1)*oR*0.95,cY+Math.sin(a+0.1)*oR*0.95);ctx.strokeStyle=`rgba(255,255,180,${0.2+Math.random()*0.3})`;ctx.lineWidth=TILE_SIZE*0.02;ctx.stroke();}
+            ctx.fillStyle='#4A2C00';ctx.beginPath();ctx.arc(cX,cY,iR,0,Math.PI*2);ctx.fill();
+            ctx.strokeStyle='#DAA520';ctx.lineWidth=TILE_SIZE*0.02;ctx.beginPath();ctx.arc(cX,cY,oR,0,Math.PI*2);ctx.stroke();
+            for(let i=0; i<5; i++){ ctx.fillStyle = `rgba(255,255,224,${0.5 + Math.random()*0.5})`; const sX = cX + (Math.random()-0.5)*oR*1.5; const sY = cY + (Math.random()-0.5)*oR*1.5; const sS = TILE_SIZE * (0.02 + Math.random()*0.03); ctx.fillRect(sX-sS/2, sY-sS/2, sS,sS);}
+            return cvs;
+        }
+
+        function createCDPickupEffect(x, y, isGolden) {
+            const particleCount = 20; 
+            const baseColor = isGolden ? [255, 215, 0] : [220, 220, 220]; 
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    renderX: x, 
+                    renderY: y,
+                    size: Math.random() * 2.5 + 1.5, 
+                    speedX: (Math.random() - 0.5) * 0.8, 
+                    speedY: (Math.random() - 0.5) * 0.8 - 0.3, 
+                    color: `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, ${Math.random() * 0.6 + 0.4})`,
+                    alpha: 1,
+                    life: Math.random() * 25 + 25 
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.renderX += p.speedX * (TILE_SIZE/16); 
+                p.renderY += p.speedY * (TILE_SIZE/16);
+                p.alpha -= 0.04; 
+                p.life--;
+                if (p.life <= 0 || p.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function drawParticles() { 
+            particles.forEach(p => {
+                const dx = p.renderX - player.x;
+                const dy = p.renderY - player.y;
+                const distToParticle = Math.hypot(dx, dy);
+                
+                if (distToParticle < TILE_SIZE * 8 && distToParticle > 0.05) { 
+                    let particleAngle = Math.atan2(dy, dx) - player.angle;
+                    particleAngle = (particleAngle + Math.PI * 2) % (Math.PI * 2);
+                    if (particleAngle > Math.PI) particleAngle -= Math.PI * 2;
+
+                    if (Math.abs(particleAngle) < FOV / 1.2) { 
+                        const particleScreenX = RENDER_WIDTH / 2 + (particleAngle / (FOV / 2)) * (RENDER_WIDTH / 2);
+                        const particleScreenY = RENDER_HEIGHT / 2 - (p.size * TILE_SIZE / distToParticle / 2) + (TILE_SIZE / distToParticle * 2); 
+                        const particleSizeOnScreen = Math.max(1, (p.size * TILE_SIZE) / (distToParticle * 2.5));
+
+                        offscreenCtx.globalAlpha = Math.max(0, p.alpha);
+                        offscreenCtx.fillStyle = p.color;
+                        offscreenCtx.fillRect(particleScreenX - particleSizeOnScreen / 2, particleScreenY - particleSizeOnScreen / 2, particleSizeOnScreen, particleSizeOnScreen);
+                        offscreenCtx.globalAlpha = 1;
+                    }
+                }
+            });
+        }
+
+
+        const MAP_DATA = [ 
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,1,0,0,0,1,0,0,0,0,1],[1,0,1,0,1,0,1,0,1,1,0,1,0,1],
+            [1,0,1,0,0,0,1,0,0,0,0,1,0,1],[1,0,1,1,1,1,1,1,1,0,1,1,0,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,1],
+            [1,1,1,0,1,1,0,0,1,1,0,1,1,1],[1,0,0,0,1,0,0,0,0,0,0,0,0,1],[1,0,1,1,1,0,1,1,1,1,0,1,0,1],
+            [1,0,0,0,0,0,0,1,0,0,0,1,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        ];
+        const MAP_WIDTH = MAP_DATA[0].length, MAP_HEIGHT = MAP_DATA.length;
+
+        async function fetchLLMResponse(prompt,targetEl,isGO=0){ if(isFetchingLLM&&!isGO)return;isFetchingLLM=1;if(targetEl)targetEl.innerHTML=`✨ Thinking<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>`;
+            const apiK="",apiU=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiK}`;const pL={contents:[{role:"user",parts:[{text:prompt}]}]};
+            try{const r=await fetch(apiU,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pL)});if(!r.ok)throw Error(`API:${r.status}`);const res=await r.json();
+                if(res.candidates&&res.candidates[0]?.content?.parts?.[0]?.text){const t=res.candidates[0].content.parts[0].text;if(targetEl)targetEl.textContent=t;return t;}
+                else{if(targetEl)targetEl.textContent="PA Static...";console.error("LLM Format Error",res);return"Error: PA Static.";}}
+            catch(e){console.error('LLM Error:',e);if(targetEl)targetEl.textContent="Mall PA Offline...";return"Error: PA Offline.";}finally{if(!isGO)isFetchingLLM=0;}}
+        async function triggerPAAnnouncement(){ if(isFetchingLLM||!gameRunning)return;const p="Short, surreal, unsettling PA announcement for an empty mall, PS1 arcade game style with pink walls. Max 15 words. Examples: 'The pink walls are humming.' or 'CDs extend your stay.' or 'Time is... relative here.'";await fetchLLMResponse(p,messageDisplay);}
+        
+        function findEmptyTiles(){ const e=[];for(let y=0;y<MAP_HEIGHT;y++)for(let x=0;x<MAP_WIDTH;x++)if(gameMap[y][x]===0&&Math.hypot((x+0.5)*TILE_SIZE-player.x,(y+0.5)*TILE_SIZE-player.y)>TILE_SIZE*2.5)e.push({x,y});return e;}
+        
+        function respawnCD() { 
+            const emptyTiles = findEmptyTiles();
+            if (emptyTiles.length > 0) {
+                const newPos = emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
+                cdPosition.x = (newPos.x + 0.5) * TILE_SIZE;
+                cdPosition.y = (newPos.y + 0.5) * TILE_SIZE;
+                cdPosition.active = true;
+                if (!goldenCDSpawnedThisGame && regularCDsCollected >= GOLDEN_CD_SCORE_THRESHOLD) {
+                    cdPosition.isGolden = true;
+                    goldenCDSpawnedThisGame = true; 
+                    messageDisplay.textContent = "A GOLDEN CD APPEARS!";
+                } else {
+                    cdPosition.isGolden = false;
+                }
+            } else { cdPosition.active = false; console.warn("No space for CD!"); }
+        }
+        
+        function updateTimerDisplay(){
+            timerDisplay.textContent=`Time: ${timeLeft}`;
+            const percentage = (timeLeft / INITIAL_TIME) * 100;
+            timerProgressBar.style.width = `${percentage}%`;
+
+            if (percentage <= 25) { 
+                timerProgressBar.style.backgroundColor = '#FF4136'; 
+            } else if (percentage <= 60) { 
+                timerProgressBar.style.backgroundColor = '#FFDC00'; 
+            } else { 
+                timerProgressBar.style.backgroundColor = '#2ECC40'; 
+            }
+        }
+        function updateScoreDisplay(){scoreDisplay.textContent=`CDs: ${score}`; }
+
+        function setMainCanvasDimensions() {
+            mainCanvas.width = gameplayScreen.clientWidth;
+            mainCanvas.height = gameplayScreen.clientHeight;
+        }
+
+        function generateShareableScoreGraphic() {
+            const graphicCanvas = document.createElement('canvas');
+            const graphicWidth = 405; 
+            const graphicHeight = 720;
+            graphicCanvas.width = graphicWidth;
+            graphicCanvas.height = graphicHeight;
+            const ctx = graphicCanvas.getContext('2d');
+            ctx.imageSmoothingEnabled = false;
+
+            const brickWidth = 32, brickHeight = 16;
+            const mortarColor = '#1A1A1A', brickColor1 = '#0A0A0A', brickColor2 = '#050505'; 
+            ctx.fillStyle = mortarColor; ctx.fillRect(0, 0, graphicWidth, graphicHeight);
+            for (let r = 0; r < graphicHeight / brickHeight; r++) {
+                for (let c = 0; c < graphicWidth / brickWidth + 1; c++) {
+                    ctx.fillStyle = (r + c) % 3 === 0 ? brickColor2 : brickColor1; 
+                    let xOffset = (r % 2 === 0) ? 0 : -brickWidth / 2;
+                    ctx.fillRect(c * brickWidth + xOffset, r * brickHeight, brickWidth -2 , brickHeight -2 );
+                }
+            }
+            const vignetteGradient = ctx.createRadialGradient(graphicWidth/2, graphicHeight/2, graphicHeight/4, graphicWidth/2, graphicHeight/2, graphicHeight/1.5);
+            vignetteGradient.addColorStop(0, 'rgba(0,0,0,0)'); vignetteGradient.addColorStop(1, 'rgba(0,0,0,0.7)');
+            ctx.fillStyle = vignetteGradient; ctx.fillRect(0,0,graphicWidth,graphicHeight);
+
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            
+            const millosY = graphicHeight * 0.18; 
+            ctx.font = "700 20px 'Press Start 2P'";
+            ctx.fillStyle = "#800080"; 
+            ctx.fillText("Millo's", graphicWidth / 2 + 2, millosY + 2); 
+            ctx.fillStyle = "#FFF0F5"; 
+            ctx.fillText("Millo's", graphicWidth / 2, millosY);
+
+            const htwBaseY = graphicHeight * 0.30;
+            const lineHeight = 38; 
+            const hitTheWallFontSize = 34; 
+            ctx.font = `700 ${hitTheWallFontSize}px 'Press Start 2P'`; 
+            
+            ctx.fillStyle = "#FF1493"; 
+            ctx.fillText("Hit", graphicWidth / 2 + 3, htwBaseY + 3); 
+            ctx.fillText("The", graphicWidth / 2 + 3, htwBaseY + lineHeight + 3); 
+            ctx.fillText("Wall", graphicWidth / 2 + 3, htwBaseY + lineHeight * 2 + 3); 
+            ctx.fillStyle = "#FFFF00"; 
+            ctx.fillText("Hit", graphicWidth / 2, htwBaseY);
+            ctx.fillText("The", graphicWidth / 2, htwBaseY + lineHeight);
+            ctx.fillText("Wall", graphicWidth / 2, htwBaseY + lineHeight * 2);
+            
+            const scoreTextY = graphicHeight * 0.55; 
+            ctx.font = "700 24px 'Press Start 2P'"; 
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillText("Collected:", graphicWidth / 2, scoreTextY - 25);
+            
+            ctx.font = "700 50px 'Press Start 2P'"; 
+            ctx.fillStyle = "#FFFF00";
+            ctx.shadowColor = "#FF8C00"; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 3; ctx.shadowBlur = 0;
+            ctx.fillText(score, graphicWidth / 2, scoreTextY + 30);
+            ctx.shadowColor = "transparent"; 
+            ctx.font = "700 24px 'Press Start 2P'"; 
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillText("CDs!", graphicWidth / 2, scoreTextY + 80);
+
+            const cdSpriteForShare = createReflectiveCDSpriteEnhanced(70); 
+            ctx.drawImage(cdSpriteForShare, graphicWidth/2 - 35, scoreTextY + 125, 70, 70);
+
+            const promoY = graphicHeight * 0.88;
+            ctx.font = "12px 'Press Start 2P'"; ctx.fillStyle = "#B0B0D0";
+            ctx.fillText("Play Millo's 'Hit The Wall'", graphicWidth / 2, promoY);
+            ctx.font = "10px 'Press Start 2P'";
+            ctx.fillText("on Itch.io!", graphicWidth / 2, promoY + 20);
+
+            const dataUrl = graphicCanvas.toDataURL('image/png');
+            const newWindow = window.open();
+            if (newWindow) {
+                newWindow.document.write(`<body style="margin:0; background:#111;"><img src="${dataUrl}" alt="Millo's Hit The Wall Score" style="display:block; margin:auto; max-width:100%; max-height:100vh;"></body>`);
+            } else {
+                console.warn("Could not open new window for score graphic. Pop-up blocker?");
+            }
+        }
+
+        async function startGameSequence(){ 
+            titleScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            gameplayScreen.classList.remove('hidden'); 
+            gameplayScreen.style.display = 'flex'; 
+            
+            setMainCanvasDimensions(); 
+            offscreenCanvas.width = RENDER_WIDTH; 
+            offscreenCanvas.height = RENDER_HEIGHT;
+
+            initGame();
+            gameRunning=true;
+            lastTime=performance.now();
+            if (animationFrameId) cancelAnimationFrame(animationFrameId); 
+            animationFrameId = requestAnimationFrame(gameLoop);
+
+            if (gameTimerInterval) clearInterval(gameTimerInterval); 
+            gameTimerInterval=setInterval(()=>{
+                timeLeft--;
+                updateTimerDisplay();
+                if(timeLeft<=0) endGame();
+            },1000);
+
+            if (!menuMusic.paused) { 
+                menuMusic.pause();
+                menuMusic.currentTime = 0;
+            }
+            if (!endMenuMusic.paused) {
+                endMenuMusic.pause();
+                endMenuMusic.currentTime = 0;
+            }
+            if (gameplayMusic.paused) { 
+                gameplayMusic.play().catch(error => console.log("Gameplay music play error:", error));
+            }
+        }
+
+        async function endGame(){ 
+            gameRunning=false; 
+            clearInterval(gameTimerInterval);
+            if(paAnnouncementTimer) clearInterval(paAnnouncementTimer);
+            
+            gameplayScreen.classList.add('hidden'); 
+            gameplayScreen.style.display = 'none';
+            gameOverScreen.classList.remove('hidden');
+            finalScoreDisplay.textContent=score; 
+            const p=`Player survived by collecting ${score} CDs in "Millo's Hit the Wall" (Survival Mode). Short, quirky, PS1 arcade game over message. Low CD count (0-5): Not much time bought!. Mid (6-10): Decent run!. High (11+): CD Hoarder Supreme! Max 25 words.`;
+            await fetchLLMResponse(p,gameOverMessage,true); 
+
+            if (!gameplayMusic.paused) {
+                gameplayMusic.pause();
+                gameplayMusic.currentTime = 0; 
+            }
+            if (endMenuMusic.paused) {
+                endMenuMusic.play().catch(error => console.log("End menu music play error:", error));
+            }
+        }
+
+        function initGame(){ 
+            offscreenCanvas.width=RENDER_WIDTH; offscreenCanvas.height=RENDER_HEIGHT; 
+            offscreenCtx.imageSmoothingEnabled=false;
+            particles = []; 
+
+            gameMap=MAP_DATA.map(r=>[...r]);let pP=0;
+            for(let y=0;y<MAP_HEIGHT;y++){for(let x=0;x<MAP_WIDTH;x++)if(!pP&&gameMap[y][x]===0){player.x=(x+0.5)*TILE_SIZE;player.y=(y+0.5)*TILE_SIZE;player.angle=Math.PI/2;pP=1;break;}if(pP)break;}
+            score=0; 
+            timeLeft=INITIAL_TIME; 
+            goldenCDSpawnedThisGame=false;
+            regularCDsCollected=0;
+            updateScoreDisplay();updateTimerDisplay();respawnCD();
+            messageDisplay.textContent="Stay Alive! Collect CDs!"; 
+            collectedCDImage.src=textures.cdSprite.toDataURL(); 
+            if(paAnnouncementTimer)clearInterval(paAnnouncementTimer);
+            paAnnouncementTimer=setInterval(triggerPAAnnouncement,PA_ANNOUNCEMENT_INTERVAL);
+            setTimeout(triggerPAAnnouncement,3500);
+        }
+        
+        const keys={};
+        function handleTouchControl(key, isPressed, buttonElement) { 
+            keys[key] = isPressed;
+            if (buttonElement) {
+                if (isPressed) {
+                    buttonElement.classList.add('active');
+                } else {
+                    buttonElement.classList.remove('active');
+                }
+            }
+        }
+
+        arrowUpButton.addEventListener('touchstart', (e) => { e.preventDefault(); handleTouchControl('arrowup', true, arrowUpButton); });
+        arrowUpButton.addEventListener('touchend', (e) => { e.preventDefault(); handleTouchControl('arrowup', false, arrowUpButton); });
+        arrowDownButton.addEventListener('touchstart', (e) => { e.preventDefault(); handleTouchControl('arrowdown', true, arrowDownButton); });
+        arrowDownButton.addEventListener('touchend', (e) => { e.preventDefault(); handleTouchControl('arrowdown', false, arrowDownButton); });
+        arrowLeftButton.addEventListener('touchstart', (e) => { e.preventDefault(); handleTouchControl('arrowleft', true, arrowLeftButton); });
+        arrowLeftButton.addEventListener('touchend', (e) => { e.preventDefault(); handleTouchControl('arrowleft', false, arrowLeftButton); });
+        arrowRightButton.addEventListener('touchstart', (e) => { e.preventDefault(); handleTouchControl('arrowright', true, arrowRightButton); });
+        arrowRightButton.addEventListener('touchend', (e) => { e.preventDefault(); handleTouchControl('arrowright', false, arrowRightButton); });
+        
+        arrowUpButton.addEventListener('mousedown', () => handleTouchControl('arrowup', true, arrowUpButton));
+        arrowUpButton.addEventListener('mouseup', () => handleTouchControl('arrowup', false, arrowUpButton));
+        arrowDownButton.addEventListener('mousedown', () => handleTouchControl('arrowdown', true, arrowDownButton));
+        arrowDownButton.addEventListener('mouseup', () => handleTouchControl('arrowdown', false, arrowDownButton));
+        arrowLeftButton.addEventListener('mousedown', () => handleTouchControl('arrowleft', true, arrowLeftButton));
+        arrowLeftButton.addEventListener('mouseup', () => handleTouchControl('arrowleft', false, arrowLeftButton));
+        arrowRightButton.addEventListener('mousedown', () => handleTouchControl('arrowright', true, arrowRightButton));
+        arrowRightButton.addEventListener('mouseup', () => handleTouchControl('arrowright', false, arrowRightButton));
+
+
+        window.addEventListener('keydown',(e)=>{
+            keys[e.key.toLowerCase()]=true;
+            if (e.key === 'Enter' && !gameRunning && titleScreen.classList.contains('hidden') === false) {
+                startGameSequence();
+            }
+        });
+        window.addEventListener('keyup',(e)=>keys[e.key.toLowerCase()]=false);
+        
+        function handleInput(){ if(!gameRunning)return;let dx=0,dy=0;
+            if(keys['arrowup']||keys['w']){dx+=Math.cos(player.angle)*MOVE_SPEED;dy+=Math.sin(player.angle)*MOVE_SPEED;}
+            if(keys['arrowdown']||keys['s']){dx-=Math.cos(player.angle)*MOVE_SPEED;dy-=Math.sin(player.angle)*MOVE_SPEED;}
+            if(keys['arrowleft']||keys['a'])player.angle-=TURN_SPEED;if(keys['arrowright']||keys['d'])player.angle+=TURN_SPEED;
+            player.angle=(player.angle+Math.PI*2)%(Math.PI*2);
+            const nPX=player.x+dx,nPY=player.y+dy,pTX=Math.floor(nPX/TILE_SIZE),pTY=Math.floor(nPY/TILE_SIZE);
+            if(gameMap[pTY]&&gameMap[pTY][pTX]===0){player.x=nPX;player.y=nPY;}
+            else{const pTXC=Math.floor(player.x/TILE_SIZE),pTYC=Math.floor(player.y/TILE_SIZE);
+                if(gameMap[pTYC]&&gameMap[pTYC][pTX]===0)player.x=nPX;if(gameMap[pTY]&&gameMap[pTY][pTXC]===0)player.y=nPY;}
+            if(cdPosition.active&&Math.hypot(player.x-cdPosition.x,player.y-cdPosition.y)<TILE_SIZE*0.65){
+                const isGoldenHit = cdPosition.isGolden;
+                createCDPickupEffect(cdPosition.x, cdPosition.y, isGoldenHit); 
+                if (isGoldenHit) {
+                    score += GOLDEN_CD_POINTS_VALUE; 
+                    timeLeft += TIME_PER_GOLDEN_CD;
+                    goldenCdPickupSound.currentTime = 0; goldenCdPickupSound.play(); 
+                    messageDisplay.textContent = `GOLDEN CD! +${TIME_PER_GOLDEN_CD} Sec!`;
+                } else {
+                    score++;
+                    timeLeft += TIME_PER_CD;
+                    cdPickupSound.currentTime = 0; cdPickupSound.play(); 
+                    regularCDsCollected++;
+                    messageDisplay.textContent = `CD! +${TIME_PER_CD} Sec!`;
+                }
+                updateScoreDisplay();
+                updateTimerDisplay(); 
+                cdPosition.active=false;
+                collectedCDImage.src = isGoldenHit ? textures.goldenCdSprite.toDataURL() : textures.cdSprite.toDataURL();
+                setTimeout(()=>{if(gameRunning)respawnCD();},100);}}
+
+        function render(){
+            if (!gameRunning) return; 
+
+            offscreenCanvas.width = RENDER_WIDTH;
+            offscreenCanvas.height = RENDER_HEIGHT;
+
+            offscreenCtx.drawImage(textures.ceiling,0,0,RENDER_WIDTH,RENDER_HEIGHT/2);offscreenCtx.drawImage(textures.floor,0,RENDER_HEIGHT/2,RENDER_WIDTH,RENDER_HEIGHT/2);
+            for(let i=0;i<NUM_RAYS;i++){const rA=player.angle-FOV/2+(i/NUM_RAYS)*FOV;let dTW=0,hW=0,hE=0;const eX=Math.cos(rA),eY=Math.sin(rA);
+                while(!hW&&dTW<TILE_SIZE*MAP_WIDTH){dTW+=1;const tX=Math.floor((player.x+eX*dTW)/TILE_SIZE),tY=Math.floor((player.y+eY*dTW)/TILE_SIZE);
+                    if(tX<0||tX>=MAP_WIDTH||tY<0||tY>=MAP_HEIGHT){hW=1;dTW=TILE_SIZE*MAP_WIDTH;}
+                    else if(gameMap[tY][tX]===1){hW=1;const bMX=tX*TILE_SIZE+TILE_SIZE/2,bMY=tY*TILE_SIZE+TILE_SIZE/2,rPX=player.x+eX*dTW,rPY=player.y+eY*dTW;const tAng=Math.atan2(rPY-bMY,rPX-bMX);
+                        if(tAng>=-Math.PI*0.25&&tAng<Math.PI*0.25)hE=0;else if(tAng>=Math.PI*0.25&&tAng<Math.PI*0.75)hE=1;else if(tAng<-Math.PI*0.25&&tAng>=-Math.PI*0.75)hE=1;else hE=0;}}
+                const cD=dTW*Math.cos(rA-player.angle),wH=Math.min(RENDER_HEIGHT,(TILE_SIZE/cD)*RENDER_HEIGHT);const wT=(RENDER_HEIGHT/2)-wH/2,wHX=player.x+eX*dTW,wHY=player.y+eY*dTW;
+                let tXx=Math.floor(hE?wHX%TILE_SIZE:wHY%TILE_SIZE);offscreenCtx.drawImage(textures.wall,tXx,0,1,TILE_SIZE,i,wT,1,wH);
+                const sF=Math.max(0.05,1-(cD/(TILE_SIZE*6.5)));offscreenCtx.fillStyle=`rgba(25,0,25,${1-sF*0.85})`;offscreenCtx.fillRect(i,wT,1,wH);}
+            if(cdPosition.active){const dX=cdPosition.x-player.x,dY=cdPosition.y-player.y,dTS=Math.hypot(dX,dY);
+                let sA=(Math.atan2(dY,dX)-player.angle+Math.PI*2)%(Math.PI*2);if(sA>Math.PI)sA-=Math.PI*2;
+                const sS=Math.min(RENDER_HEIGHT,(TILE_SIZE/dTS)*RENDER_HEIGHT*(cdPosition.isGolden ? 0.75 : 0.65)); 
+                if(Math.abs(sA)<FOV/2+0.35){const sSX=RENDER_WIDTH/2+(sA/(FOV/2))*(RENDER_WIDTH/2)-sS/2,sSY=(RENDER_HEIGHT/2)-sS/2+(TILE_SIZE/dTS*3.5);
+                    if(sSX+sS>0&&sSX<RENDER_WIDTH&&dTS>TILE_SIZE*0.1){const cRC=Math.floor(sSX+sS/2);
+                        if(cRC>=0&&cRC<NUM_RAYS){let iO=0;if(dTS<TILE_SIZE*4){const cRA=player.angle-FOV/2+(cRC/NUM_RAYS)*FOV;let dTWS=0,hWFS=0;const eXS=Math.cos(cRA),eYS=Math.sin(cRA);
+                            while(!hWFS&&dTWS<dTS-TILE_SIZE*0.05){dTWS+=1;const tXS=Math.floor((player.x+eXS*dTWS)/TILE_SIZE),tYS=Math.floor((player.y+eYS*dTWS)/TILE_SIZE);if(gameMap[tYS]&&gameMap[tYS][tXS]===1){iO=1;break;}}}
+                            if(!iO){offscreenCtx.globalAlpha=Math.max(0.5,1-dTS/(TILE_SIZE*12));const spriteToDraw=cdPosition.isGolden?textures.goldenCdSprite:textures.cdSprite;offscreenCtx.drawImage(spriteToDraw,sSX,sSY,sS,sS);offscreenCtx.globalAlpha=1;}}}}}
+            
+            if (gameRunning) { 
+                updateParticles();
+                drawParticles(); 
+            }
+
+            const mainCtx=mainCanvas.getContext('2d');mainCtx.imageSmoothingEnabled=false;
+            mainCtx.drawImage(offscreenCanvas,0,0,mainCanvas.width,mainCanvas.height);
+        }
+        let lastTime=0;
+        let animationFrameId = null; 
+        function gameLoop(ts){
+            if(!gameRunning) { 
+                if(animationFrameId) cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+                return;
+            }
+            lastTime=ts;handleInput();render();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+        
+        function handleWindowResize() {
+            if (gameplayScreen.classList.contains('hidden') === false) { 
+                 setMainCanvasDimensions(); 
+                 if(gameRunning) render(); 
+            }
+        }
+        window.addEventListener('resize', handleWindowResize);
+
+        restartButton.addEventListener('click',()=> { 
+            titleScreen.classList.remove('hidden'); 
+            gameOverScreen.classList.add('hidden');
+            gameplayScreen.classList.add('hidden'); 
+            gameplayScreen.style.display = 'none';
+            if (!endMenuMusic.paused) {
+                endMenuMusic.pause();
+                endMenuMusic.currentTime = 0;
+            }
+            if (menuMusic.paused) { 
+                menuMusic.play().catch(error => console.log("Menu music play error on restart:", error));
+            }
+        });
+        shareScoreButton.addEventListener('click', generateShareableScoreGraphic);
+        
+        (async()=>{
+            drawPixelCursiveLogo();
+            if (menuMusic.paused) { 
+                 menuMusic.play().catch(error => {
+                    console.log("Initial menu music autoplay was prevented. User interaction may be needed.", error);
+                    const playMenuOnFirstInteraction = () => {
+                        if (menuMusic.paused) menuMusic.play().catch(e => console.log("Menu music interaction play error:", e));
+                        document.removeEventListener('click', playMenuOnFirstInteraction);
+                        document.removeEventListener('keydown', playMenuOnFirstInteraction);
+                    };
+                    document.addEventListener('click', playMenuOnFirstInteraction, { once: true });
+                    document.addEventListener('keydown', playMenuOnFirstInteraction, { once: true });
+                 });
+            }
+            console.log("Game initialized.");
+            titleScreen.classList.remove('hidden');gameplayScreen.classList.add('hidden');gameOverScreen.classList.add('hidden');
+        })();
+    </script>
+</body>
+</html>
