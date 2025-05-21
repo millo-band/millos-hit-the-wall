@@ -44,7 +44,7 @@
         #titleScreen { 
             max-width: 550px; 
             padding: 25px; 
-            cursor: pointer; /* Indicate it's clickable */
+            cursor: pointer; 
         }
         #logoCanvas {
             width: 480px; 
@@ -571,13 +571,11 @@
         ];
         const MAP_WIDTH = MAP_DATA[0].length, MAP_HEIGHT = MAP_DATA.length;
 
-        async function fetchLLMResponse(prompt,targetEl,isGO=0){ if(isFetchingLLM&&!isGO)return;isFetchingLLM=1;if(targetEl)targetEl.innerHTML=`✨ Thinking<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>`;
-            const apiK="",apiU=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiK}`;const pL={contents:[{role:"user",parts:[{text:prompt}]}]};
-            try{const r=await fetch(apiU,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pL)});if(!r.ok)throw Error(`API:${r.status}`);const res=await r.json();
-                if(res.candidates&&res.candidates[0]?.content?.parts?.[0]?.text){const t=res.candidates[0].content.parts[0].text;if(targetEl)targetEl.textContent=t;return t;}
-                else{if(targetEl)targetEl.textContent="PA Static...";console.error("LLM Format Error",res);return"Error: PA Static.";}}
-            catch(e){console.error('LLM Error:',e);if(targetEl)targetEl.textContent="Mall PA Offline...";return"Error: PA Offline.";}finally{if(!isGO)isFetchingLLM=0;}}
-        async function triggerPAAnnouncement(){ if(isFetchingLLM||!gameRunning)return;const p="Short, surreal, unsettling PA announcement for an empty mall, PS1 arcade game style with pink walls. Max 15 words. Examples: 'The pink walls are humming.' or 'CDs extend your stay.' or 'Time is... relative here.'";await fetchLLMResponse(p,messageDisplay);}
+        function triggerPAAnnouncement(){ 
+            if(!gameRunning) return;
+            const randomIndex = Math.floor(Math.random() * paAnnouncementsList.length);
+            messageDisplay.textContent = paAnnouncementsList[randomIndex];
+        }
         
         function findEmptyTiles(){ const e=[];for(let y=0;y<MAP_HEIGHT;y++)for(let x=0;x<MAP_WIDTH;x++)if(gameMap[y][x]===0&&Math.hypot((x+0.5)*TILE_SIZE-player.x,(y+0.5)*TILE_SIZE-player.y)>TILE_SIZE*2.5)e.push({x,y});return e;}
         
@@ -684,8 +682,10 @@
             const promoY = graphicHeight * 0.88;
             ctx.font = "12px 'Press Start 2P'"; ctx.fillStyle = "#B0B0D0";
             ctx.fillText("Play Millo's 'Hit The Wall'", graphicWidth / 2, promoY);
-            ctx.font = "10px 'Press Start 2P'";
-            ctx.fillText("on Itch.io!", graphicWidth / 2, promoY + 20);
+            // Removed "on Itch.io!" text
+            // ctx.font = "10px 'Press Start 2P'";
+            // ctx.fillText("on Itch.io!", graphicWidth / 2, promoY + 20);
+
 
             const dataUrl = graphicCanvas.toDataURL('image/png');
             const newWindow = window.open();
@@ -719,11 +719,11 @@
                 if(timeLeft<=0) endGame();
             },1000);
 
-            if (!menuMusic.paused) { 
+            if (menuMusic.duration > 0 && !menuMusic.paused) { 
                 menuMusic.pause();
                 menuMusic.currentTime = 0;
             }
-            if (!endMenuMusic.paused) {
+            if (endMenuMusic.duration > 0 && !endMenuMusic.paused) {
                 endMenuMusic.pause();
                 endMenuMusic.currentTime = 0;
             }
@@ -806,6 +806,11 @@
         window.addEventListener('keydown',(e)=>{
             keys[e.key.toLowerCase()]=true;
             if (e.key === 'Enter' && !gameRunning && titleScreen.classList.contains('hidden') === false) {
+                startGameSequence();
+            }
+        });
+        titleScreen.addEventListener('click', () => { // Add click listener to title screen
+             if (!gameRunning && titleScreen.classList.contains('hidden') === false) {
                 startGameSequence();
             }
         });
@@ -913,13 +918,6 @@
             if (menuMusic.paused) { 
                  menuMusic.play().catch(error => {
                     console.log("Initial menu music autoplay was prevented. User interaction may be needed.", error);
-                    const playMenuOnFirstInteraction = () => {
-                        if (menuMusic.paused) menuMusic.play().catch(e => console.log("Menu music interaction play error:", e));
-                        document.removeEventListener('click', playMenuOnFirstInteraction);
-                        document.removeEventListener('keydown', playMenuOnFirstInteraction);
-                    };
-                    document.addEventListener('click', playMenuOnFirstInteraction, { once: true });
-                    document.addEventListener('keydown', playMenuOnFirstInteraction, { once: true });
                  });
             }
             console.log("Game initialized.");
