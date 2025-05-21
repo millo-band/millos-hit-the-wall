@@ -168,7 +168,7 @@
             box-shadow: 2px 2px 0px #202040;
         }
         
-        .loading-dots span { animation: blink 1.4s infinite both; }
+        .loading-dots span { animation: blink 1.4s infinite both; } 
         .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
         .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
         @keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
@@ -209,33 +209,42 @@
         }
 
         #onScreenControls {
-            display: none; 
+            display: none; /* Hidden by default on desktop, shown by JS for gameplay on mobile */
+            width: 100%;
             position: fixed;
-            bottom: 20px; 
-            left: 50%;
-            transform: translateX(-50%);
+            bottom: 0;
+            left: 0;
             z-index: 10; 
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: space-between; /* Pushes left and right controls to sides */
+            align-items: flex-end; /* Align to bottom */
+            pointer-events: none; /* Container itself doesn't catch events */
+        }
+        .control-cluster {
+            display: flex;
+            gap: 10px;
+            pointer-events: auto; /* Buttons inside catch events */
+            background-color: rgba(10,10,20,0.6); /* Slight background for clusters */
             padding: 8px;
-            background-color: rgba(10,10,20,0.75);
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            border-radius: 5px;
         }
-        .control-dpad {
-            display: grid;
-            grid-template-areas: 
-                ". up ."
-                "left . right"
-                ". down .";
-            gap: 8px; 
+        #leftControls {
+            flex-direction: column; /* Up/Down vertically */
         }
+        #rightControls {
+            flex-direction: row; /* Left/Right horizontally */
+        }
+
         .control-button { 
-            width: 60px; 
-            height: 60px;
+            width: 55px; 
+            height: 55px;
             background-color: #303050; 
             border: 2px solid #7070A0; 
             box-shadow: 0px 2px 0px #181828;
             color: #E0E0FF;
-            font-size: 28px; 
+            font-size: 24px; 
             display: flex;
             align-items: center;
             justify-content: center;
@@ -249,13 +258,9 @@
             box-shadow: inset 0px 1px 2px #181828; 
             transform: translateY(1px);
         }
-        #arrowUp { grid-area: up; }
-        #arrowLeft { grid-area: left; }
-        #arrowRight { grid-area: right; }
-        #arrowDown { grid-area: down; }
-
+      
         @media (max-width: 768px) { 
-            #onScreenControls { display: block; }
+            /* #onScreenControls display is handled by JS now */
             .controls-text { display: none; }
             #titleScreen { padding: 15px; max-width: 95%; } 
             #logoCanvas { width: 90%; height: auto; aspect-ratio: 450 / 180; margin-bottom: 20px;} 
@@ -268,7 +273,9 @@
             #timerProgressBarContainer { width: 80px; height: 10px; }
         }
          @media (max-height: 450px) and (orientation: landscape) { 
-            #onScreenControls { bottom: 5px; transform: translateX(-50%) scale(0.75); } 
+            #onScreenControls { padding: 5px; }
+            .control-cluster { gap: 5px; padding: 5px;}
+            .control-button { width: 45px; height: 45px; font-size: 20px;}
             .game-stats { font-size: 10px; padding: 4px 8px; }
             #messageDisplay { font-size: 9px; padding: 3px 6px; }
             #timerProgressBarContainer { width: 70px; height: 8px; }
@@ -325,11 +332,13 @@
     </div>
 
     <div id="onScreenControls">
-        <div class="control-dpad">
+        <div id="leftControls" class="control-cluster">
             <button id="arrowUp" class="control-button">▲</button>
+            <button id="arrowDown" class="control-button">▼</button>
+        </div>
+        <div id="rightControls" class="control-cluster">
             <button id="arrowLeft" class="control-button">◀</button>
             <button id="arrowRight" class="control-button">▶</button>
-            <button id="arrowDown" class="control-button">▼</button>
         </div>
     </div>
 
@@ -358,6 +367,7 @@
         const endMenuMusic = document.getElementById('endMenuMusic');
         const cdPickupSound = document.getElementById('cdPickupSound');
         const goldenCdPickupSound = document.getElementById('goldenCdPickupSound');
+        const onScreenControls = document.getElementById('onScreenControls'); // Get the main controls container
         
         // --- Offscreen Canvas for 3D Pixelation ---
         const offscreenCanvas = document.createElement('canvas'); 
@@ -571,11 +581,13 @@
         ];
         const MAP_WIDTH = MAP_DATA[0].length, MAP_HEIGHT = MAP_DATA.length;
 
-        function triggerPAAnnouncement(){ 
-            if(!gameRunning) return;
-            const randomIndex = Math.floor(Math.random() * paAnnouncementsList.length);
-            messageDisplay.textContent = paAnnouncementsList[randomIndex];
-        }
+        async function fetchLLMResponse(prompt,targetEl,isGO=0){ if(isFetchingLLM&&!isGO)return;isFetchingLLM=1;if(targetEl)targetEl.innerHTML=`✨ Thinking<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>`;
+            const apiK="",apiU=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiK}`;const pL={contents:[{role:"user",parts:[{text:prompt}]}]};
+            try{const r=await fetch(apiU,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pL)});if(!r.ok)throw Error(`API:${r.status}`);const res=await r.json();
+                if(res.candidates&&res.candidates[0]?.content?.parts?.[0]?.text){const t=res.candidates[0].content.parts[0].text;if(targetEl)targetEl.textContent=t;return t;}
+                else{if(targetEl)targetEl.textContent="PA Static...";console.error("LLM Format Error",res);return"Error: PA Static.";}}
+            catch(e){console.error('LLM Error:',e);if(targetEl)targetEl.textContent="Mall PA Offline...";return"Error: PA Offline.";}finally{if(!isGO)isFetchingLLM=0;}}
+        async function triggerPAAnnouncement(){ if(isFetchingLLM||!gameRunning)return;const p="Short, surreal, unsettling PA announcement for an empty mall, PS1 arcade game style with pink walls. Max 15 words. Examples: 'The pink walls are humming.' or 'CDs extend your stay.' or 'Time is... relative here.'";await fetchLLMResponse(p,messageDisplay);}
         
         function findEmptyTiles(){ const e=[];for(let y=0;y<MAP_HEIGHT;y++)for(let x=0;x<MAP_WIDTH;x++)if(gameMap[y][x]===0&&Math.hypot((x+0.5)*TILE_SIZE-player.x,(y+0.5)*TILE_SIZE-player.y)>TILE_SIZE*2.5)e.push({x,y});return e;}
         
@@ -682,10 +694,7 @@
             const promoY = graphicHeight * 0.88;
             ctx.font = "12px 'Press Start 2P'"; ctx.fillStyle = "#B0B0D0";
             ctx.fillText("Play Millo's 'Hit The Wall'", graphicWidth / 2, promoY);
-            // Removed "on Itch.io!" text
-            // ctx.font = "10px 'Press Start 2P'";
-            // ctx.fillText("on Itch.io!", graphicWidth / 2, promoY + 20);
-
+            // Removed "on Itch.io!" text from share graphic
 
             const dataUrl = graphicCanvas.toDataURL('image/png');
             const newWindow = window.open();
@@ -695,12 +704,29 @@
                 console.warn("Could not open new window for score graphic. Pop-up blocker?");
             }
         }
+        
+        function manageMusic(trackToPlay) {
+            const allMusic = [menuMusic, gameplayMusic, endMenuMusic];
+            allMusic.forEach(audioEl => {
+                if (audioEl !== trackToPlay) {
+                    if (audioEl && audioEl.duration > 0 && !audioEl.paused) {
+                        audioEl.pause();
+                        audioEl.currentTime = 0;
+                    }
+                }
+            });
+            if (trackToPlay && trackToPlay.paused) {
+                trackToPlay.play().catch(error => console.log(`${trackToPlay.id} play error:`, error));
+            }
+        }
+
 
         async function startGameSequence(){ 
             titleScreen.classList.add('hidden');
             gameOverScreen.classList.add('hidden');
             gameplayScreen.classList.remove('hidden'); 
             gameplayScreen.style.display = 'flex'; 
+            onScreenControls.style.display = window.innerWidth <= 768 ? 'flex' : 'none'; // Show controls if mobile
             
             setMainCanvasDimensions(); 
             offscreenCanvas.width = RENDER_WIDTH; 
@@ -718,18 +744,7 @@
                 updateTimerDisplay();
                 if(timeLeft<=0) endGame();
             },1000);
-
-            if (menuMusic.duration > 0 && !menuMusic.paused) { 
-                menuMusic.pause();
-                menuMusic.currentTime = 0;
-            }
-            if (endMenuMusic.duration > 0 && !endMenuMusic.paused) {
-                endMenuMusic.pause();
-                endMenuMusic.currentTime = 0;
-            }
-            if (gameplayMusic.paused) { 
-                gameplayMusic.play().catch(error => console.log("Gameplay music play error:", error));
-            }
+            manageMusic(gameplayMusic);
         }
 
         async function endGame(){ 
@@ -739,18 +754,12 @@
             
             gameplayScreen.classList.add('hidden'); 
             gameplayScreen.style.display = 'none';
+            onScreenControls.style.display = 'none'; // Hide controls
             gameOverScreen.classList.remove('hidden');
             finalScoreDisplay.textContent=score; 
             const p=`Player survived by collecting ${score} CDs in "Millo's Hit the Wall" (Survival Mode). Short, quirky, PS1 arcade game over message. Low CD count (0-5): Not much time bought!. Mid (6-10): Decent run!. High (11+): CD Hoarder Supreme! Max 25 words.`;
             await fetchLLMResponse(p,gameOverMessage,true); 
-
-            if (!gameplayMusic.paused) {
-                gameplayMusic.pause();
-                gameplayMusic.currentTime = 0; 
-            }
-            if (endMenuMusic.paused) {
-                endMenuMusic.play().catch(error => console.log("End menu music play error:", error));
-            }
+            manageMusic(endMenuMusic);
         }
 
         function initGame(){ 
@@ -809,7 +818,7 @@
                 startGameSequence();
             }
         });
-        titleScreen.addEventListener('click', () => { // Add click listener to title screen
+        titleScreen.addEventListener('click', () => { 
              if (!gameRunning && titleScreen.classList.contains('hidden') === false) {
                 startGameSequence();
             }
@@ -903,23 +912,13 @@
             gameOverScreen.classList.add('hidden');
             gameplayScreen.classList.add('hidden'); 
             gameplayScreen.style.display = 'none';
-            if (!endMenuMusic.paused) {
-                endMenuMusic.pause();
-                endMenuMusic.currentTime = 0;
-            }
-            if (menuMusic.paused) { 
-                menuMusic.play().catch(error => console.log("Menu music play error on restart:", error));
-            }
+            manageMusic(menuMusic); 
         });
         shareScoreButton.addEventListener('click', generateShareableScoreGraphic);
         
         (async()=>{
             drawPixelCursiveLogo();
-            if (menuMusic.paused) { 
-                 menuMusic.play().catch(error => {
-                    console.log("Initial menu music autoplay was prevented. User interaction may be needed.", error);
-                 });
-            }
+            manageMusic(menuMusic); 
             console.log("Game initialized.");
             titleScreen.classList.remove('hidden');gameplayScreen.classList.add('hidden');gameOverScreen.classList.add('hidden');
         })();
