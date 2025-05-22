@@ -153,19 +153,19 @@
             box-shadow: 2px 2px 0px #202040;
         }
         
-        #finalScoreDisplay { /* Used for Time Survived on Game Over */
+        #finalScoreDisplay { 
             font-size: 28px; 
             color: #FFFF00; 
             text-shadow: 2px 2px 0px #FF8C00; 
             margin: 8px 0;
         }
-        .stats-grid { /* For detailed stats on Game Over */
+        .stats-grid { 
             display: grid;
-            grid-template-columns: repeat(2, 1fr); 
-            gap: 5px 15px; 
-            font-size: 10px;
+            grid-template-columns: 1fr; /* Simplified to one column for basic stats */
+            gap: 5px; 
+            font-size: 12px; /* Slightly larger for main stats */
             margin-top: 10px;
-            text-align: left;
+            text-align: center; /* Center stats */
         }
         .stats-grid span {
             color: #FFFF88; 
@@ -250,7 +250,6 @@
         }
       
         @media (max-width: 768px) { 
-            /* .onScreenControls display handled by JS */
             .controls-text { display: none; }
             #titleScreen { padding: 15px; max-width: 95%; } 
             #logoCanvas { width: 90%; height: auto; aspect-ratio: 450 / 180; margin-bottom: 20px;} 
@@ -311,16 +310,10 @@
         <div id="gameOverScreen" class="hidden screen-panel p-5">
             <h2 class="title-text-small" style="font-size: 20px; margin-bottom: 8px;">Game Over!</h2> 
             <div id="scoreSection">
-                <p style="font-size:12px; margin-bottom:5px;">Final Stats:</p>
                 <div id="finalScoreDisplay">0s Survived</div> 
                 <div class="stats-grid">
-                    <div>CDs Collected: <span id="statRegularCDs">0</span></div>
-                    <div>Golden CDs: <span id="statGoldenCDs">0</span></div>
-                    <div>Time Freezes: <span id="statTimeFreezes">0</span></div>
-                    <div>Pathfinders: <span id="statPathfinders">0</span></div>
-                    <div>Cursed Idols: <span id="statCursedIdols">0</span></div>
-                    <div>Goo Puddles Hit: <span id="statGooPuddles">0</span></div>
-                </div>
+                    <div>CDs Collected: <span id="statCDsCollected">0</span></div>
+                    </div>
                 <p id="gameOverMessage" class="mt-4 mb-3 min-h-[2em] flex items-center justify-center" style="font-size:10px;"></p>
             </div>
             
@@ -373,14 +366,7 @@
         const pathfinderSound = document.getElementById('pathfinderSound');
         const cursedIdolSound = document.getElementById('cursedIdolSound');
         const onScreenControls = document.getElementById('onScreenControls'); 
-
-        // Stat display elements
-        const statRegularCDs = document.getElementById('statRegularCDs');
-        const statGoldenCDs = document.getElementById('statGoldenCDs');
-        const statTimeFreezes = document.getElementById('statTimeFreezes');
-        const statPathfinders = document.getElementById('statPathfinders');
-        const statCursedIdols = document.getElementById('statCursedIdols');
-        const statGooPuddles = document.getElementById('statGooPuddles');
+        const statCDsCollected = document.getElementById('statCDsCollected'); // For simplified game over stats
         
         // --- Offscreen Canvas for 3D Pixelation ---
         const offscreenCanvas = document.createElement('canvas'); 
@@ -417,18 +403,14 @@
         let cursedIdolPosition = { x:0, y:0, active: false, type: 'cursedIdol'}; 
         const POWERUP_SPAWN_CHANCE = 0.15; 
 
-        let score = 0; 
+        let score = 0; // Total CDs collected (for display during gameplay)
         let timeLeft = INITIAL_TIME;
         let totalTimePlayedInSeconds = 0;
-        let goldenCDsCollectedCount = 0;
-        let regularCDsCollectedThisRound = 0; 
-        let timeFreezeCollectedCount = 0;
-        let pathfinderCollectedCount = 0;
-        let cursedIdolsCollectedCount = 0;
-        let gooPuddlesSteppedOnCount = 0;
+        // Removed detailed stat tracking variables like goldenCDsCollectedCount, etc. as they are not displayed
 
         let gameRunning = false, gameTimerInterval = null, paAnnouncementTimer = null; 
         let nextGoldenCDAfter = GOLDEN_CD_BASE_THRESHOLD; 
+        let regularCDsCollectedForGoldenTrigger = 0; // Still needed for Golden CD logic
 
         let isXRayModeActive = false;
         let xRayTimerId = null;
@@ -440,6 +422,7 @@
         let pathfinderTimerId = null;
         let isFogActive = false;
         let fogTimerId = null;
+        let particles = []; 
 
         // --- Baked-in PA Announcements ---
         const paAnnouncementsList = [ 
@@ -751,7 +734,7 @@
         function manageMusic(trackToPlay) {
             const allMusic = [menuMusic, gameplayMusic, endMenuMusic];
             allMusic.forEach(audioEl => {
-                if (audioEl && audioEl !== trackToPlay) { // Check if audioEl is not null
+                if (audioEl && audioEl !== trackToPlay) { 
                     if (audioEl.duration > 0 && !audioEl.paused) {
                         audioEl.pause();
                         audioEl.currentTime = 0;
@@ -811,14 +794,14 @@
             gameOverScreen.classList.remove('hidden');
             
             finalScoreDisplay.textContent = `${totalTimePlayedInSeconds}s Survived`;
-            statRegularCDs.textContent = score - (goldenCDsCollectedCount * GOLDEN_CD_POINTS_VALUE); 
+            statRegularCDs.textContent = regularCDsCollectedThisRound; // Use the correct variable
             statGoldenCDs.textContent = goldenCDsCollectedCount;
             statTimeFreezes.textContent = timeFreezeCollectedCount;
             statPathfinders.textContent = pathfinderCollectedCount;
             statCursedIdols.textContent = cursedIdolsCollectedCount;
             statGooPuddles.textContent = gooPuddlesSteppedOnCount;
 
-            gameOverMessage.textContent = `You lasted ${totalTimePlayedInSeconds}s and found ${score} CDs! (${goldenCDsCollectedCount} Golden). Awesome run!`; 
+            gameOverMessage.textContent = `You lasted ${totalTimePlayedInSeconds}s and found ${score} total value in CDs!`; 
 
             manageMusic(endMenuMusic);
         }
