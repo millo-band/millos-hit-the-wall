@@ -23,32 +23,34 @@
             align-items: center;
             justify-content: center;
             position: relative;
-            background-color: transparent; 
         }
-        
-        .screen-panel { 
+        #gameCanvas {
+            border: 2px solid #303050; 
+            background-color: #000;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            max-width: 100%; 
+            max-height: calc(100vh - 150px); 
+        }
+        .screen-panel {
             background-color: rgba(15, 15, 30, 0.92); 
             border: 2px solid #505070; 
-            padding: 20px;
+            padding: 20px 30px; 
             border-radius: 0px; 
             box-shadow: 4px 4px 0px #202040; 
             max-width: 90%;
-            width: auto; 
-            min-width: 300px; 
             color: #FFFFFF;
             text-align: center;
-            margin-bottom: 10px; 
-            position: relative; 
-            z-index: 5; 
         }
         #titleScreen { 
-            max-width: 550px; 
-            padding: 25px; 
-            cursor: pointer; 
+            max-width: 480px; 
+            padding: 25px 35px; 
+            cursor: pointer;
         }
         #logoCanvas {
-            width: 480px; 
-            max-width: 100%; 
+            width: 400px; 
+            max-width: 90%; 
             height: 180px; 
             margin-bottom: 25px; 
             image-rendering: pixelated;
@@ -82,9 +84,6 @@
             color: #B0B0D0; 
             margin-top: 20px; 
         }
-        .controls-text strong {
-            color: #FFFF88; 
-        }
 
         #gameplayScreen { 
             width: 100vw;
@@ -97,20 +96,6 @@
             align-items: center;
             justify-content: flex-start; 
             z-index: 2; 
-        }
-        #gameCanvas { 
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border: none; 
-            background-color: #000;
-            image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
-            display: block; 
-            z-index: 1; 
         }
         #gameUiContainer { 
             width: 90%;
@@ -168,13 +153,13 @@
             box-shadow: 2px 2px 0px #202040;
         }
         
-        #finalScoreDisplay { 
+        #finalScoreDisplay { /* Used for Time Survived on Game Over */
             font-size: 28px; 
             color: #FFFF00; 
             text-shadow: 2px 2px 0px #FF8C00; 
             margin: 8px 0;
         }
-        .stats-grid {
+        .stats-grid { /* For detailed stats on Game Over */
             display: grid;
             grid-template-columns: repeat(2, 1fr); 
             gap: 5px 15px; 
@@ -766,15 +751,18 @@
         function manageMusic(trackToPlay) {
             const allMusic = [menuMusic, gameplayMusic, endMenuMusic];
             allMusic.forEach(audioEl => {
-                if (audioEl && audioEl.duration > 0 && !audioEl.paused && audioEl !== trackToPlay) {
-                    audioEl.pause();
-                    audioEl.currentTime = 0;
+                if (audioEl && audioEl !== trackToPlay) { // Check if audioEl is not null
+                    if (audioEl.duration > 0 && !audioEl.paused) {
+                        audioEl.pause();
+                        audioEl.currentTime = 0;
+                    }
                 }
             });
             if (trackToPlay && trackToPlay.paused) {
                 trackToPlay.play().catch(error => console.log(`${trackToPlay.id} play error:`, error));
             }
         }
+
 
         async function startGameSequence(){ 
             titleScreen.classList.add('hidden');
@@ -948,7 +936,7 @@
                     timeLeft += TIME_PER_CD;
                     cdPickupSound.currentTime = 0; cdPickupSound.play(); 
                     regularCDsCollectedForGoldenTrigger++;
-                    regularCDsCollectedThisRound++; // For Golden CD trigger after base threshold
+                    regularCDsCollectedThisRound++; 
                     messageDisplay.textContent = `CD! +${TIME_PER_CD} Sec!`;
                 }
                 updateScoreDisplay(); updateTimerDisplay(); cdPosition.active=false;
@@ -956,7 +944,7 @@
             }
 
             // Power-up / Power-down Collections
-            const items = [timeFreezePosition, pathfinderPosition, cursedIdolPosition]; // Removed xraySpecsPosition
+            const items = [timeFreezePosition, pathfinderPosition, cursedIdolPosition]; 
             items.forEach(item => {
                 if (item.active && Math.hypot(player.x - item.x, player.y - item.y) < TILE_SIZE * 0.6) {
                     item.active = false;
