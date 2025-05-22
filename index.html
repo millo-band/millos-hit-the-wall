@@ -24,7 +24,7 @@
             justify-content: center;
             position: relative;
         }
-        #gameCanvas { /* This is the main 3D rendering canvas */
+        #gameCanvas { 
             border: 2px solid #303050; 
             background-color: #000;
             image-rendering: pixelated;
@@ -273,18 +273,6 @@
     </style>
 </head>
 <body class="select-none">
-    <!-- <audio id="menuMusic" loop src="menu_music.mp3"></audio> --> 
-    <!-- <audio id="gameplayMusic" loop src="millo_theme.mp3"></audio> --> 
-    <!-- <audio id="endMenuMusic" loop src="end-menu-music.mp3"></audio> -->
-    <!-- <audio id="cdPickupSound" src="cd.mp3"></audio> -->
-    <!-- <audio id="goldenCdPickupSound" src="golden-cd.mp3"></audio> -->
-    <audio id="xraySpecsSound" src="YOUR_XRAY_SFX.wav"></audio> 
-    <audio id="gooPuddleSound" src="YOUR_GOO_SFX.wav"></audio> 
-    <audio id="timeFreezeSound" src="YOUR_TIME_FREEZE_SFX.wav"></audio> 
-    <audio id="pathfinderSound" src="YOUR_PATHFINDER_SFX.wav"></audio> 
-    <audio id="cursedIdolSound" src="YOUR_CURSED_IDOL_SFX.wav"></audio> 
-
-
     <div id="gameContainer">
         <div id="titleScreen" class="screen-panel"> 
             <canvas id="logoCanvas"></canvas>
@@ -336,11 +324,6 @@
     </div>
 
     <script type="module">
-
-window.onerror = function (message, source, lineno, colno, error) {
-  alert("Error: " + message + "\n" + source + ":" + lineno);
-};
-
         // --- DOM Elements ---
         const titleScreen = document.getElementById('titleScreen');
         const gameplayScreen = document.getElementById('gameplayScreen');
@@ -359,16 +342,7 @@ window.onerror = function (message, source, lineno, colno, error) {
         const arrowLeftButton = document.getElementById('arrowLeft');
         const arrowRightButton = document.getElementById('arrowRight');
         const shareScoreButton = document.getElementById('shareScoreButton');
-        const menuMusic = document.getElementById('menuMusic'); 
-        const gameplayMusic = document.getElementById('gameplayMusic'); 
-        const endMenuMusic = document.getElementById('endMenuMusic');
-        const cdPickupSound = document.getElementById('cdPickupSound');
-        const goldenCdPickupSound = document.getElementById('goldenCdPickupSound');
-        const xraySpecsSound = document.getElementById('xraySpecsSound');
-        const gooPuddleSound = document.getElementById('gooPuddleSound');
-        const timeFreezeSound = document.getElementById('timeFreezeSound');
-        const pathfinderSound = document.getElementById('pathfinderSound');
-        const cursedIdolSound = document.getElementById('cursedIdolSound');
+        // Audio DOM elements removed
         const onScreenControls = document.getElementById('onScreenControls'); 
         const statCDsCollected = document.getElementById('statCDsCollected');
         
