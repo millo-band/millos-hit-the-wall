@@ -23,33 +23,32 @@
             align-items: center;
             justify-content: center;
             position: relative;
+            background-color: transparent; 
         }
-        #gameCanvas { 
-            border: 2px solid #303050; 
-            background-color: #000;
-            image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
-            display: block; 
-        }
-        .screen-panel {
+        
+        .screen-panel { 
             background-color: rgba(15, 15, 30, 0.92); 
             border: 2px solid #505070; 
-            padding: 20px 30px; 
+            padding: 20px;
             border-radius: 0px; 
             box-shadow: 4px 4px 0px #202040; 
             max-width: 90%;
+            width: auto; 
+            min-width: 300px; 
             color: #FFFFFF;
             text-align: center;
+            margin-bottom: 10px; 
+            position: relative; 
+            z-index: 5; 
         }
         #titleScreen { 
-            max-width: 480px; 
-            padding: 25px 35px; 
-            cursor: pointer;
+            max-width: 550px; 
+            padding: 25px; 
+            cursor: pointer; 
         }
         #logoCanvas {
-            width: 400px; 
-            max-width: 90%; 
+            width: 480px; 
+            max-width: 100%; 
             height: 180px; 
             margin-bottom: 25px; 
             image-rendering: pixelated;
@@ -83,6 +82,9 @@
             color: #B0B0D0; 
             margin-top: 20px; 
         }
+        .controls-text strong {
+            color: #FFFF88; 
+        }
 
         #gameplayScreen { 
             width: 100vw;
@@ -95,6 +97,20 @@
             align-items: center;
             justify-content: flex-start; 
             z-index: 2; 
+        }
+        #gameCanvas { 
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none; 
+            background-color: #000;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            display: block; 
+            z-index: 1; 
         }
         #gameUiContainer { 
             width: 90%;
@@ -152,22 +168,16 @@
             box-shadow: 2px 2px 0px #202040;
         }
         
-        #finalScoreDisplay { 
-            font-size: 28px; 
+        .loading-dots span { animation: blink 1.4s infinite both; } 
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
+
+        #finalScoreDisplay {
+            font-size: 32px; 
             color: #FFFF00; 
             text-shadow: 2px 2px 0px #FF8C00; 
             margin: 8px 0;
-        }
-        .stats-grid { 
-            display: grid;
-            grid-template-columns: 1fr; 
-            gap: 5px; 
-            font-size: 12px; 
-            margin-top: 10px;
-            text-align: center; 
-        }
-        .stats-grid span {
-            color: #FFFF88; 
         }
         
         .pixel-button { 
@@ -199,6 +209,7 @@
         }
 
         #onScreenControls {
+            display: none; /* Hidden by default on desktop, shown by JS for gameplay on mobile */
             width: 100%;
             position: fixed;
             bottom: 0;
@@ -206,24 +217,24 @@
             z-index: 10; 
             padding: 10px;
             box-sizing: border-box;
-            display: none; 
-            justify-content: space-between; 
-            align-items: flex-end; 
-            pointer-events: none; 
+            display: flex;
+            justify-content: space-between; /* Pushes left and right controls to sides */
+            align-items: flex-end; /* Align to bottom */
+            pointer-events: none; /* Container itself doesn't catch events */
         }
         .control-cluster {
             display: flex;
             gap: 10px;
-            pointer-events: auto; 
-            background-color: rgba(10,10,20,0.6); 
+            pointer-events: auto; /* Buttons inside catch events */
+            background-color: rgba(10,10,20,0.6); /* Slight background for clusters */
             padding: 8px;
             border-radius: 5px;
         }
         #leftControls {
-            flex-direction: column; 
+            flex-direction: column; /* Up/Down vertically */
         }
         #rightControls {
-            flex-direction: row; 
+            flex-direction: row; /* Left/Right horizontally */
         }
 
         .control-button { 
@@ -249,6 +260,7 @@
         }
       
         @media (max-width: 768px) { 
+            /* #onScreenControls display is handled by JS now */
             .controls-text { display: none; }
             #titleScreen { padding: 15px; max-width: 95%; } 
             #logoCanvas { width: 90%; height: auto; aspect-ratio: 450 / 180; margin-bottom: 20px;} 
@@ -259,10 +271,11 @@
             #finalScoreDisplay { font-size: 28px; }
             .pixel-button { font-size: 10px; padding: 6px 12px; }
             #timerProgressBarContainer { width: 80px; height: 10px; }
-            .stats-grid { grid-template-columns: 1fr; font-size: 9px; } 
         }
          @media (max-height: 450px) and (orientation: landscape) { 
-            #onScreenControls { bottom: 5px; transform: translateX(-50%) scale(0.75); } 
+            #onScreenControls { padding: 5px; }
+            .control-cluster { gap: 5px; padding: 5px;}
+            .control-button { width: 45px; height: 45px; font-size: 20px;}
             .game-stats { font-size: 10px; padding: 4px 8px; }
             #messageDisplay { font-size: 9px; padding: 3px 6px; }
             #timerProgressBarContainer { width: 70px; height: 8px; }
@@ -273,6 +286,12 @@
     </style>
 </head>
 <body class="select-none">
+    <audio id="menuMusic" loop src="menu_music.mp3"></audio> 
+    <audio id="gameplayMusic" loop src="millo_theme.mp3"></audio> 
+    <audio id="endMenuMusic" loop src="end-menu-music.mp3"></audio>
+    <audio id="cdPickupSound" src="cd.mp3"></audio>
+    <audio id="goldenCdPickupSound" src="golden-cd.mp3"></audio>
+
     <div id="gameContainer">
         <div id="titleScreen" class="screen-panel"> 
             <canvas id="logoCanvas"></canvas>
@@ -297,14 +316,14 @@
         <div id="gameOverScreen" class="hidden screen-panel p-5">
             <h2 class="title-text-small" style="font-size: 20px; margin-bottom: 8px;">Game Over!</h2> 
             <div id="scoreSection">
-                <div id="finalScoreDisplay">0s Survived</div> 
-                <div class="stats-grid">
-                    <div>CDs Collected: <span id="statCDsCollected">0</span></div>
-                </div>
-                <p id="gameOverMessage" class="mt-4 mb-3 min-h-[2em] flex items-center justify-center" style="font-size:10px;"></p>
+                <p style="font-size:10px;">You collected:</p>
+                <div id="finalScoreDisplay">0</div>
+                <p style="font-size:10px;">CDs!</p>
+                <img id="collectedCDImage" src="https://placehold.co/50x50/C0C0C0/FFFFFF?text=CD" alt="Collected CD" class="mx-auto my-2 rounded-full border-2 border-gray-500" style="width:50px; height:50px;"> 
+                <p id="gameOverMessage" class="mb-3 min-h-[2em] flex items-center justify-center" style="font-size:10px;"></p>
             </div>
             
-            <div class="flex flex-col sm:flex-row justify-center items-center mt-2"> 
+            <div class="flex flex-col sm:flex-row justify-center items-center"> 
                 <button id="restartButton" class="pixel-button green">Play Again?</button>
                 <button id="shareScoreButton" class="pixel-button">Share Score</button>
                 <a href="https://open.spotify.com/artist/5DqBbDMaCLIJEswvNl07Ys?si=hz3sJ7GZQ4mpl0VGdtiNKg" target="_blank" id="listenMusicButton" class="pixel-button" style="background-color: #1DB954; border-color: #107A38; box-shadow: 2px 2px 0px #107A38;">Listen to Millo!</a>
@@ -333,8 +352,9 @@
         const messageDisplay = document.getElementById('messageDisplay');
         const timerDisplay = document.getElementById('timerDisplay');
         const timerProgressBar = document.getElementById('timerProgressBar'); 
-        const scoreDisplay = document.getElementById('scoreDisplay'); 
-        const finalScoreDisplay = document.getElementById('finalScoreDisplay'); 
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const finalScoreDisplay = document.getElementById('finalScoreDisplay');
+        const collectedCDImage = document.getElementById('collectedCDImage');
         const gameOverMessage = document.getElementById('gameOverMessage');
         const logoCanvas = document.getElementById('logoCanvas');
         const arrowUpButton = document.getElementById('arrowUp');
@@ -342,9 +362,12 @@
         const arrowLeftButton = document.getElementById('arrowLeft');
         const arrowRightButton = document.getElementById('arrowRight');
         const shareScoreButton = document.getElementById('shareScoreButton');
-        // Audio DOM elements removed
-        const onScreenControls = document.getElementById('onScreenControls'); 
-        const statCDsCollected = document.getElementById('statCDsCollected');
+        const menuMusic = document.getElementById('menuMusic'); 
+        const gameplayMusic = document.getElementById('gameplayMusic'); 
+        const endMenuMusic = document.getElementById('endMenuMusic');
+        const cdPickupSound = document.getElementById('cdPickupSound');
+        const goldenCdPickupSound = document.getElementById('goldenCdPickupSound');
+        const onScreenControls = document.getElementById('onScreenControls'); // Get the main controls container
         
         // --- Offscreen Canvas for 3D Pixelation ---
         const offscreenCanvas = document.createElement('canvas'); 
@@ -353,60 +376,34 @@
         // --- Game Configuration ---
         const RENDER_WIDTH = 160, RENDER_HEIGHT = 120; 
         const TILE_SIZE = 64; 
-        const FOV = Math.PI / 3;
-        let MOVE_SPEED = TILE_SIZE / 9; 
-        const ORIGINAL_MOVE_SPEED = TILE_SIZE / 9; 
-        const TURN_SPEED = 0.06, NUM_RAYS = RENDER_WIDTH;
+        const FOV = Math.PI / 3, MOVE_SPEED = TILE_SIZE / 9, TURN_SPEED = 0.06, NUM_RAYS = RENDER_WIDTH;
         const INITIAL_TIME = 30; 
         const TIME_PER_CD = 5; 
         const TIME_PER_GOLDEN_CD = 10; 
         const PA_ANNOUNCEMENT_INTERVAL = 17000;
-        const GOLDEN_CD_BASE_THRESHOLD = 1; 
+        const GOLDEN_CD_SCORE_THRESHOLD = 3;
         const GOLDEN_CD_POINTS_VALUE = 5; 
-        const XRAY_DURATION = 10000; 
-        const SLOWDOWN_DURATION = 3000; 
-        const TIME_FREEZE_DURATION = 7000; 
-        const PATHFINDER_DURATION = 10000; 
-        const FOG_DURATION = 8000; 
 
         // --- Game State ---
-        let player = { x: 0, y: 0, angle: 0 };
-        let gameMap = [];
-        let cdPosition = { x: 0, y: 0, active: false, isGolden: false };
-        let xraySpecsPosition = { x: 0, y: 0, active: false, type: 'xray' }; 
-        let gooPuddles = []; 
-        const MAX_GOO_PUDDLES = 2; 
-        let timeFreezePosition = { x:0, y:0, active: false, type: 'timeFreeze'};
-        let pathfinderPosition = { x:0, y:0, active: false, type: 'pathfinder'};
-        let cursedIdolPosition = { x:0, y:0, active: false, type: 'cursedIdol'}; 
-        const POWERUP_SPAWN_CHANCE = 0.15; 
-
+        let player = { x: 0, y: 0, angle: 0 }, gameMap = [], cdPosition = { x: 0, y: 0, active: true, isGolden: false };
         let score = 0; 
         let timeLeft = INITIAL_TIME;
-        let totalTimePlayedInSeconds = 0;
-        
         let gameRunning = false, gameTimerInterval = null, paAnnouncementTimer = null; 
-        let nextGoldenCDAfter = GOLDEN_CD_BASE_THRESHOLD; 
-        let regularCDsCollectedForGoldenTrigger = 0; 
-
-        let isXRayModeActive = false;
-        let xRayTimerId = null;
-        let isSlowed = false;
-        let slowdownTimerId = null;
-        let isTimeFrozen = false;
-        let timeFreezeEffectTimerId = null;
-        let isPathfinderActive = false;
-        let pathfinderTimerId = null;
-        let isFogActive = false;
-        let fogTimerId = null;
+        let goldenCDSpawnedThisGame = false;
+        let regularCDsCollected = 0; 
         let particles = []; 
 
         // --- Baked-in PA Announcements ---
-        const paAnnouncementsList = [ 
-            "The pink walls are humming...","CDs extend your stay.","Time is... relative here.",
-            "Caution: Floor may be surprisingly green.","Remember to breathe... or don't.",
-            "Lost items can be found... eventually.","Enjoy your non-Euclidean shopping experience!",
-            "The food court is experiencing... temporal distortions.","Please keep all appendages inside the reality.",
+        const paAnnouncementsList = [
+            "The pink walls are humming...",
+            "CDs extend your stay.",
+            "Time is... relative here.",
+            "Caution: Floor may be surprisingly green.",
+            "Remember to breathe... or don't.",
+            "Lost items can be found... eventually.",
+            "Enjoy your non-Euclidean shopping experience!",
+            "The food court is experiencing... temporal distortions.",
+            "Please keep all appendages inside the reality.",
             "Today's special: Existential dread with a side of static."
         ];
 
@@ -414,33 +411,74 @@
         const ARCADE_PINK_WALL_1 = '#FF69B4', ARCADE_PINK_WALL_2 = '#DB7093'; 
         const PS1_GREEN_CARPET_1 = '#2E8B57', PS1_GREEN_CARPET_2 = '#228B22'; 
         const PS1_NIGHT_SKY_1 = '#191970', PS1_NIGHT_SKY_2 = '#000033'; 
-        const XRAY_WALL_COLOR = 'rgba(100, 100, 255, 0.2)'; 
-        const XRAY_WALL_OUTLINE_COLOR = 'rgba(150, 150, 255, 0.5)';
 
         const textures = {
             wall: createTexture(ARCADE_PINK_WALL_1, ARCADE_PINK_WALL_2, false, true),
             floor: createTexture(PS1_GREEN_CARPET_1, PS1_GREEN_CARPET_2, true),
             ceiling: createNightSkyTexture(PS1_NIGHT_SKY_1, PS1_NIGHT_SKY_2),
             cdSprite: createReflectiveCDSpriteEnhanced(),
-            goldenCdSprite: createGoldenCDSprite(),
-            xraySpecsSprite: createXRaySpecsSprite(), 
-            gooPuddleSprite: createGooPuddleSprite(),
-            timeFreezeSprite: createTimeFreezeSprite(),
-            pathfinderSprite: createPathfinderSprite(),
-            cursedIdolSprite: createCursedIdolSprite()
+            goldenCdSprite: createGoldenCDSprite()
         };
 
         // --- Drawing Functions ---
         function drawPixelCursiveLogo() { 
-            const ctx = logoCanvas.getContext('2d'); const cw = logoCanvas.width; const ch = logoCanvas.height; ctx.imageSmoothingEnabled = false; ctx.clearRect(0,0,cw,ch);
-            const startViewPlayer = { x: TILE_SIZE * 1.5, y: TILE_SIZE * 1.5, angle: Math.PI / 4 }; const tempOffscreen = document.createElement('canvas'); tempOffscreen.width = RENDER_WIDTH; tempOffscreen.height = RENDER_HEIGHT; const tempCtx = tempOffscreen.getContext('2d'); tempCtx.imageSmoothingEnabled = false;
-            tempCtx.drawImage(textures.ceiling,0,0,RENDER_WIDTH,RENDER_HEIGHT/2); tempCtx.drawImage(textures.floor,0,RENDER_HEIGHT/2,RENDER_WIDTH,RENDER_HEIGHT/2);
-            for(let i=0; i < NUM_RAYS; i++) { const rayAngle = startViewPlayer.angle - FOV/2 + (i/NUM_RAYS) * FOV; let distToWall = 0, hitWall = false, hitEdge = false; const eyeX = Math.cos(rayAngle), eyeY = Math.sin(rayAngle);
-                while(!hitWall && distToWall < TILE_SIZE * 5){ distToWall += 2; const testX = Math.floor((startViewPlayer.x + eyeX * distToWall) / TILE_SIZE); const testY = Math.floor((startViewPlayer.y + eyeY * distToWall) / TILE_SIZE); if(testX<0||testX>=MAP_WIDTH||testY<0||testY>=MAP_HEIGHT){hitWall=true; distToWall=TILE_SIZE*5;} else if(MAP_DATA[testY] && MAP_DATA[testY][testX]===1){ hitWall=true; }}
-                const correctedDist = distToWall * Math.cos(rayAngle - startViewPlayer.angle); const wallHeight = Math.min(RENDER_HEIGHT, (TILE_SIZE / correctedDist) * RENDER_HEIGHT * 0.8); const wallTop = (RENDER_HEIGHT/2) - wallHeight/2; const wallHitX = startViewPlayer.x + eyeX * distToWall; const wallHitY = startViewPlayer.y + eyeY * distToWall; let textureX = Math.floor(hitEdge ? wallHitX % TILE_SIZE : wallHitY % TILE_SIZE); tempCtx.drawImage(textures.wall, textureX,0,1,TILE_SIZE, i,wallTop,1,wallHeight); const shadeFactor = Math.max(0.1, 1 - (correctedDist/(TILE_SIZE*4))); tempCtx.fillStyle = `rgba(25,0,25,${1-shadeFactor*0.7})`; tempCtx.fillRect(i,wallTop,1,wallHeight);
-            } ctx.drawImage(tempOffscreen, 0, 0, cw, ch); 
-            ctx.textAlign = "center"; ctx.textBaseline = "middle"; const millosY = ch * 0.35; ctx.font = "24px 'Press Start 2P'"; ctx.fillStyle = "#800080"; ctx.fillText("Millo's", cw * 0.5 + 2, millosY + 2); ctx.fillStyle = "#FFF0F5"; ctx.fillText("Millo's", cw * 0.5, millosY);
-            const htwY = ch * 0.65; const hitTheWallFontSize = 38; ctx.font = `${hitTheWallFontSize}px 'Press Start 2P'`; const shadowOffset = 3; ctx.fillStyle = "#FF1493"; ctx.fillText("Hit the Wall", cw * 0.5 + shadowOffset, htwY + shadowOffset); ctx.fillStyle = "#FFFF00"; ctx.fillText("Hit the Wall", cw * 0.5, htwY);
+            const ctx = logoCanvas.getContext('2d');
+            const cw = logoCanvas.width;
+            const ch = logoCanvas.height;
+            ctx.imageSmoothingEnabled = false; 
+            ctx.clearRect(0,0,cw,ch);
+
+            const startViewPlayer = { x: TILE_SIZE * 1.5, y: TILE_SIZE * 1.5, angle: Math.PI / 4 }; 
+            const tempOffscreen = document.createElement('canvas');
+            tempOffscreen.width = RENDER_WIDTH;
+            tempOffscreen.height = RENDER_HEIGHT;
+            const tempCtx = tempOffscreen.getContext('2d');
+            tempCtx.imageSmoothingEnabled = false;
+
+            tempCtx.drawImage(textures.ceiling,0,0,RENDER_WIDTH,RENDER_HEIGHT/2);
+            tempCtx.drawImage(textures.floor,0,RENDER_HEIGHT/2,RENDER_WIDTH,RENDER_HEIGHT/2);
+            for(let i=0; i < NUM_RAYS; i++) {
+                const rayAngle = startViewPlayer.angle - FOV/2 + (i/NUM_RAYS) * FOV;
+                let distToWall = 0, hitWall = false, hitEdge = false;
+                const eyeX = Math.cos(rayAngle), eyeY = Math.sin(rayAngle);
+                while(!hitWall && distToWall < TILE_SIZE * 5){ 
+                    distToWall += 2;
+                    const testX = Math.floor((startViewPlayer.x + eyeX * distToWall) / TILE_SIZE);
+                    const testY = Math.floor((startViewPlayer.y + eyeY * distToWall) / TILE_SIZE);
+                    if(testX<0||testX>=MAP_WIDTH||testY<0||testY>=MAP_HEIGHT){hitWall=true; distToWall=TILE_SIZE*5;}
+                    else if(MAP_DATA[testY] && MAP_DATA[testY][testX]===1){ hitWall=true; }
+                }
+                const correctedDist = distToWall * Math.cos(rayAngle - startViewPlayer.angle);
+                const wallHeight = Math.min(RENDER_HEIGHT, (TILE_SIZE / correctedDist) * RENDER_HEIGHT * 0.8); 
+                const wallTop = (RENDER_HEIGHT/2) - wallHeight/2;
+                const wallHitX = startViewPlayer.x + eyeX * distToWall;
+                const wallHitY = startViewPlayer.y + eyeY * distToWall;
+                let textureX = Math.floor(hitEdge ? wallHitX % TILE_SIZE : wallHitY % TILE_SIZE);
+                tempCtx.drawImage(textures.wall, textureX,0,1,TILE_SIZE, i,wallTop,1,wallHeight);
+                const shadeFactor = Math.max(0.1, 1 - (correctedDist/(TILE_SIZE*4)));
+                tempCtx.fillStyle = `rgba(25,0,25,${1-shadeFactor*0.7})`;
+                tempCtx.fillRect(i,wallTop,1,wallHeight);
+            }
+            ctx.drawImage(tempOffscreen, 0, 0, cw, ch); 
+
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            const millosY = ch * 0.35; 
+            ctx.font = "24px 'Press Start 2P'"; 
+            ctx.fillStyle = "#800080"; 
+            ctx.fillText("Millo's", cw * 0.5 + 2, millosY + 2); 
+            ctx.fillStyle = "#FFF0F5"; 
+            ctx.fillText("Millo's", cw * 0.5, millosY);
+
+            const htwY = ch * 0.65; 
+            const hitTheWallFontSize = 38; 
+            ctx.font = `${hitTheWallFontSize}px 'Press Start 2P'`; 
+            
+            const shadowOffset = 3; 
+            ctx.fillStyle = "#FF1493"; 
+            ctx.fillText("Hit the Wall", cw * 0.5 + shadowOffset, htwY + shadowOffset); 
+            ctx.fillStyle = "#FFFF00"; 
+            ctx.fillText("Hit the Wall", cw * 0.5, htwY);
         }
 
         function createTexture(c1, c2, isChk = false, isW = false) { 
@@ -478,62 +516,62 @@
             for(let i=0; i<5; i++){ ctx.fillStyle = `rgba(255,255,224,${0.5 + Math.random()*0.5})`; const sX = cX + (Math.random()-0.5)*oR*1.5; const sY = cY + (Math.random()-0.5)*oR*1.5; const sS = TILE_SIZE * (0.02 + Math.random()*0.03); ctx.fillRect(sX-sS/2, sY-sS/2, sS,sS);}
             return cvs;
         }
-        function createXRaySpecsSprite() { 
-            const spriteCanvas = document.createElement('canvas'); spriteCanvas.width = TILE_SIZE; spriteCanvas.height = TILE_SIZE; const ctx = spriteCanvas.getContext('2d');
-            const lensRadius = TILE_SIZE*0.2; const frameColor = '#40E0D0'; const lensColor = 'rgba(173,216,230,0.5)'; ctx.strokeStyle=frameColor; ctx.lineWidth=TILE_SIZE*0.05;
-            ctx.beginPath();ctx.arc(TILE_SIZE*0.3,TILE_SIZE*0.5,lensRadius,0,Math.PI*2);ctx.stroke(); ctx.beginPath();ctx.arc(TILE_SIZE*0.7,TILE_SIZE*0.5,lensRadius,0,Math.PI*2);ctx.stroke();
-            ctx.beginPath();ctx.moveTo(TILE_SIZE*0.3+lensRadius,TILE_SIZE*0.5);ctx.lineTo(TILE_SIZE*0.7-lensRadius,TILE_SIZE*0.5);ctx.stroke();
-            ctx.fillStyle=lensColor; ctx.beginPath();ctx.arc(TILE_SIZE*0.3,TILE_SIZE*0.5,lensRadius*0.9,0,Math.PI*2);ctx.fill(); ctx.beginPath();ctx.arc(TILE_SIZE*0.7,TILE_SIZE*0.5,lensRadius*0.9,0,Math.PI*2);ctx.fill();
-            return spriteCanvas;
-        }
-        function createGooPuddleSprite() { 
-            const spriteCanvas = document.createElement('canvas'); spriteCanvas.width = TILE_SIZE; spriteCanvas.height = TILE_SIZE; const ctx = spriteCanvas.getContext('2d');
-            ctx.fillStyle='#556B2F'; ctx.beginPath(); ctx.ellipse(TILE_SIZE/2,TILE_SIZE*0.7,TILE_SIZE*0.4,TILE_SIZE*0.2,0,0,Math.PI*2); ctx.fill();
-            ctx.fillStyle='#8FBC8F'; for(let i=0;i<3;i++){ctx.beginPath(); ctx.ellipse(TILE_SIZE/2+(Math.random()-0.5)*20,TILE_SIZE*0.7+(Math.random()-0.5)*10,TILE_SIZE*0.05,TILE_SIZE*0.03,Math.random()*Math.PI,0,Math.PI*2); ctx.fill();}
-            return spriteCanvas;
-        }
-        function createTimeFreezeSprite() {
-            const spriteCanvas = document.createElement('canvas'); spriteCanvas.width = TILE_SIZE; spriteCanvas.height = TILE_SIZE; const ctx = spriteCanvas.getContext('2d');
-            ctx.fillStyle = '#ADD8E6'; 
-            ctx.beginPath(); ctx.arc(TILE_SIZE/2, TILE_SIZE/2, TILE_SIZE*0.35, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = '#87CEEB'; ctx.lineWidth = TILE_SIZE*0.05; ctx.stroke();
-            ctx.fillStyle = '#FFFFFF'; 
-            ctx.fillRect(TILE_SIZE/2 - TILE_SIZE*0.03, TILE_SIZE/2 - TILE_SIZE*0.25, TILE_SIZE*0.06, TILE_SIZE*0.3);
-            ctx.fillRect(TILE_SIZE/2 - TILE_SIZE*0.2, TILE_SIZE/2 - TILE_SIZE*0.03, TILE_SIZE*0.25, TILE_SIZE*0.06);
-            for(let i=0; i<6; i++){ ctx.beginPath(); ctx.moveTo(TILE_SIZE/2, TILE_SIZE/2); ctx.lineTo(TILE_SIZE/2 + Math.cos(i*Math.PI/3)*TILE_SIZE*0.3, TILE_SIZE/2 + Math.sin(i*Math.PI/3)*TILE_SIZE*0.3); ctx.strokeStyle='rgba(200,220,255,0.8)'; ctx.lineWidth=2; ctx.stroke();}
-            return spriteCanvas;
-        }
-        function createPathfinderSprite() {
-            const spriteCanvas = document.createElement('canvas'); spriteCanvas.width = TILE_SIZE; spriteCanvas.height = TILE_SIZE; const ctx = spriteCanvas.getContext('2d');
-            ctx.fillStyle = '#FFD700'; 
-            ctx.beginPath(); ctx.moveTo(TILE_SIZE/2, TILE_SIZE*0.15); ctx.lineTo(TILE_SIZE*0.65, TILE_SIZE*0.35); ctx.lineTo(TILE_SIZE*0.55, TILE_SIZE*0.35); ctx.lineTo(TILE_SIZE*0.55, TILE_SIZE*0.85);
-            ctx.lineTo(TILE_SIZE*0.45, TILE_SIZE*0.85); ctx.lineTo(TILE_SIZE*0.45, TILE_SIZE*0.35); ctx.lineTo(TILE_SIZE*0.35, TILE_SIZE*0.35); ctx.closePath(); ctx.fill();
-            ctx.strokeStyle = '#B8860B'; ctx.lineWidth=2; ctx.stroke();
-            return spriteCanvas;
-        }
-        function createCursedIdolSprite() {
-            const spriteCanvas = document.createElement('canvas'); spriteCanvas.width = TILE_SIZE; spriteCanvas.height = TILE_SIZE; const ctx = spriteCanvas.getContext('2d');
-            ctx.fillStyle = '#4B0082'; 
-            ctx.beginPath(); ctx.moveTo(TILE_SIZE*0.5, TILE_SIZE*0.2); ctx.lineTo(TILE_SIZE*0.7, TILE_SIZE*0.8); ctx.lineTo(TILE_SIZE*0.3, TILE_SIZE*0.8); ctx.closePath(); ctx.fill();
-            ctx.fillStyle = '#8A2BE2'; 
-            ctx.beginPath(); ctx.arc(TILE_SIZE*0.5, TILE_SIZE*0.3, TILE_SIZE*0.05, 0, Math.PI*2); ctx.fill();
-            return spriteCanvas;
+
+        function createCDPickupEffect(x, y, isGolden) {
+            const particleCount = 20; 
+            const baseColor = isGolden ? [255, 215, 0] : [220, 220, 220]; 
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    renderX: x, 
+                    renderY: y,
+                    size: Math.random() * 2.5 + 1.5, 
+                    speedX: (Math.random() - 0.5) * 0.8, 
+                    speedY: (Math.random() - 0.5) * 0.8 - 0.3, 
+                    color: `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, ${Math.random() * 0.6 + 0.4})`,
+                    alpha: 1,
+                    life: Math.random() * 25 + 25 
+                });
+            }
         }
 
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.renderX += p.speedX * (TILE_SIZE/16); 
+                p.renderY += p.speedY * (TILE_SIZE/16);
+                p.alpha -= 0.04; 
+                p.life--;
+                if (p.life <= 0 || p.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
 
-        function createCDPickupEffect(x, y, isGolden) { 
-            const particleCount = 20; const baseColor = isGolden ? [255,215,0] : [220,220,220];
-            for(let i=0;i<particleCount;i++){particles.push({renderX:x,renderY:y,size:Math.random()*2.5+1.5,speedX:(Math.random()-0.5)*0.8,speedY:(Math.random()-0.5)*0.8-0.3,color:`rgba(${baseColor[0]},${baseColor[1]},${baseColor[2]},${Math.random()*0.6+0.4})`,alpha:1,life:Math.random()*25+25});}
-        }
-        function updateParticles() { 
-            for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.renderX+=p.speedX*(TILE_SIZE/16);p.renderY+=p.speedY*(TILE_SIZE/16);p.alpha-=0.04;p.life--;if(p.life<=0||p.alpha<=0){particles.splice(i,1);}}
-        }
         function drawParticles() { 
-            particles.forEach(p=>{const dx=p.renderX-player.x,dy=p.renderY-player.y,distToParticle=Math.hypot(dx,dy);
-                if(distToParticle<TILE_SIZE*8&&distToParticle>0.05){let particleAngle=Math.atan2(dy,dx)-player.angle;particleAngle=(particleAngle+Math.PI*2)%(Math.PI*2);if(particleAngle>Math.PI)particleAngle-=Math.PI*2;
-                if(Math.abs(particleAngle)<FOV/1.2){const particleScreenX=RENDER_WIDTH/2+(particleAngle/(FOV/2))*(RENDER_WIDTH/2),particleScreenY=RENDER_HEIGHT/2-(p.size*TILE_SIZE/distToParticle/2)+(TILE_SIZE/distToParticle*2),particleSizeOnScreen=Math.max(1,(p.size*TILE_SIZE)/(distToParticle*2.5));
-                offscreenCtx.globalAlpha=Math.max(0,p.alpha);offscreenCtx.fillStyle=p.color;offscreenCtx.fillRect(particleScreenX-particleSizeOnScreen/2,particleScreenY-particleSizeOnScreen/2,particleSizeOnScreen,particleSizeOnScreen);offscreenCtx.globalAlpha=1;}}});
+            particles.forEach(p => {
+                const dx = p.renderX - player.x;
+                const dy = p.renderY - player.y;
+                const distToParticle = Math.hypot(dx, dy);
+                
+                if (distToParticle < TILE_SIZE * 8 && distToParticle > 0.05) { 
+                    let particleAngle = Math.atan2(dy, dx) - player.angle;
+                    particleAngle = (particleAngle + Math.PI * 2) % (Math.PI * 2);
+                    if (particleAngle > Math.PI) particleAngle -= Math.PI * 2;
+
+                    if (Math.abs(particleAngle) < FOV / 1.2) { 
+                        const particleScreenX = RENDER_WIDTH / 2 + (particleAngle / (FOV / 2)) * (RENDER_WIDTH / 2);
+                        const particleScreenY = RENDER_HEIGHT / 2 - (p.size * TILE_SIZE / distToParticle / 2) + (TILE_SIZE / distToParticle * 2); 
+                        const particleSizeOnScreen = Math.max(1, (p.size * TILE_SIZE) / (distToParticle * 2.5));
+
+                        offscreenCtx.globalAlpha = Math.max(0, p.alpha);
+                        offscreenCtx.fillStyle = p.color;
+                        offscreenCtx.fillRect(particleScreenX - particleSizeOnScreen / 2, particleScreenY - particleSizeOnScreen / 2, particleSizeOnScreen, particleSizeOnScreen);
+                        offscreenCtx.globalAlpha = 1;
+                    }
+                }
+            });
         }
+
 
         const MAP_DATA = [ 
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,1,0,0,0,1,0,0,0,0,1],[1,0,1,0,1,0,1,0,1,1,0,1,0,1],
@@ -543,41 +581,16 @@
         ];
         const MAP_WIDTH = MAP_DATA[0].length, MAP_HEIGHT = MAP_DATA.length;
 
-        function triggerPAAnnouncement(){ 
-            if(!gameRunning) return;
-            const randomIndex = Math.floor(Math.random() * paAnnouncementsList.length);
-            messageDisplay.textContent = paAnnouncementsList[randomIndex];
-        }
+        async function fetchLLMResponse(prompt,targetEl,isGO=0){ if(isFetchingLLM&&!isGO)return;isFetchingLLM=1;if(targetEl)targetEl.innerHTML=`✨ Thinking<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>`;
+            const apiK="",apiU=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiK}`;const pL={contents:[{role:"user",parts:[{text:prompt}]}]};
+            try{const r=await fetch(apiU,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pL)});if(!r.ok)throw Error(`API:${r.status}`);const res=await r.json();
+                if(res.candidates&&res.candidates[0]?.content?.parts?.[0]?.text){const t=res.candidates[0].content.parts[0].text;if(targetEl)targetEl.textContent=t;return t;}
+                else{if(targetEl)targetEl.textContent="PA Static...";console.error("LLM Format Error",res);return"Error: PA Static.";}}
+            catch(e){console.error('LLM Error:',e);if(targetEl)targetEl.textContent="Mall PA Offline...";return"Error: PA Offline.";}finally{if(!isGO)isFetchingLLM=0;}}
+        async function triggerPAAnnouncement(){ if(isFetchingLLM||!gameRunning)return;const p="Short, surreal, unsettling PA announcement for an empty mall, PS1 arcade game style with pink walls. Max 15 words. Examples: 'The pink walls are humming.' or 'CDs extend your stay.' or 'Time is... relative here.'";await fetchLLMResponse(p,messageDisplay);}
         
         function findEmptyTiles(){ const e=[];for(let y=0;y<MAP_HEIGHT;y++)for(let x=0;x<MAP_WIDTH;x++)if(gameMap[y][x]===0&&Math.hypot((x+0.5)*TILE_SIZE-player.x,(y+0.5)*TILE_SIZE-player.y)>TILE_SIZE*2.5)e.push({x,y});return e;}
         
-        function spawnPowerUp(itemPosition, type) {
-            if (itemPosition.active) return; 
-            const emptyTiles = findEmptyTiles();
-            if (emptyTiles.length > 0) {
-                const newPos = emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
-                itemPosition.x = (newPos.x + 0.5) * TILE_SIZE;
-                itemPosition.y = (newPos.y + 0.5) * TILE_SIZE;
-                itemPosition.active = true;
-                itemPosition.type = type; 
-            }
-        }
-
-        function spawnGooPuddle() {
-            if (gooPuddles.length < MAX_GOO_PUDDLES) {
-                const emptyTiles = findEmptyTiles();
-                if (emptyTiles.length > 0) {
-                    const newPos = emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
-                    gooPuddles.push({
-                        x: (newPos.x + 0.5) * TILE_SIZE,
-                        y: (newPos.y + 0.5) * TILE_SIZE,
-                        active: true,
-                        type: 'goo' 
-                    });
-                }
-            }
-        }
-
         function respawnCD() { 
             const emptyTiles = findEmptyTiles();
             if (emptyTiles.length > 0) {
@@ -585,29 +598,19 @@
                 cdPosition.x = (newPos.x + 0.5) * TILE_SIZE;
                 cdPosition.y = (newPos.y + 0.5) * TILE_SIZE;
                 cdPosition.active = true;
-
-                if (regularCDsCollectedForGoldenTrigger >= nextGoldenCDAfter) {
+                if (!goldenCDSpawnedThisGame && regularCDsCollected >= GOLDEN_CD_SCORE_THRESHOLD) {
                     cdPosition.isGolden = true;
-                    regularCDsCollectedForGoldenTrigger = 0; 
-                    nextGoldenCDAfter = Math.floor(Math.random() * 6) + 2; // 2-7 for next one
+                    goldenCDSpawnedThisGame = true; 
                     messageDisplay.textContent = "A GOLDEN CD APPEARS!";
                 } else {
                     cdPosition.isGolden = false;
                 }
             } else { cdPosition.active = false; console.warn("No space for CD!"); }
-            
-            if (!timeFreezePosition.active && Math.random() < POWERUP_SPAWN_CHANCE) spawnPowerUp(timeFreezePosition, 'timeFreeze');
-            if (!pathfinderPosition.active && Math.random() < POWERUP_SPAWN_CHANCE) spawnPowerUp(pathfinderPosition, 'pathfinder');
-            if (!cursedIdolPosition.active && Math.random() < POWERUP_SPAWN_CHANCE * 0.7) spawnPowerUp(cursedIdolPosition, 'cursedIdol'); 
-            
-            if (gooPuddles.length < MAX_GOO_PUDDLES && Math.random() < 0.15) { 
-                spawnGooPuddle();
-            }
         }
         
         function updateTimerDisplay(){
             timerDisplay.textContent=`Time: ${timeLeft}`;
-            const percentage = (timeLeft / INITIAL_TIME) * 100; 
+            const percentage = (timeLeft / INITIAL_TIME) * 100;
             timerProgressBar.style.width = `${percentage}%`;
 
             if (percentage <= 25) { 
@@ -650,16 +653,16 @@
 
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             
-            const millosY = graphicHeight * 0.15; 
-            ctx.font = "700 18px 'Press Start 2P'";
+            const millosY = graphicHeight * 0.18; 
+            ctx.font = "700 20px 'Press Start 2P'";
             ctx.fillStyle = "#800080"; 
             ctx.fillText("Millo's", graphicWidth / 2 + 2, millosY + 2); 
             ctx.fillStyle = "#FFF0F5"; 
             ctx.fillText("Millo's", graphicWidth / 2, millosY);
 
-            const htwBaseY = graphicHeight * 0.25; 
-            const lineHeight = 36; 
-            const hitTheWallFontSize = 32; 
+            const htwBaseY = graphicHeight * 0.30;
+            const lineHeight = 38; 
+            const hitTheWallFontSize = 34; 
             ctx.font = `700 ${hitTheWallFontSize}px 'Press Start 2P'`; 
             
             ctx.fillStyle = "#FF1493"; 
@@ -671,33 +674,27 @@
             ctx.fillText("The", graphicWidth / 2, htwBaseY + lineHeight);
             ctx.fillText("Wall", graphicWidth / 2, htwBaseY + lineHeight * 2);
             
-            const survivedY = graphicHeight * 0.48; 
-            ctx.font = "700 20px 'Press Start 2P'";
+            const scoreTextY = graphicHeight * 0.55; 
+            ctx.font = "700 24px 'Press Start 2P'"; 
             ctx.fillStyle = "#FFFFFF";
-            ctx.fillText("Survived:", graphicWidth / 2, survivedY - 18);
-            ctx.font = "700 40px 'Press Start 2P'";
-            ctx.fillStyle = "#FFFF00";
-            ctx.fillText(totalTimePlayedInSeconds + "s", graphicWidth / 2, survivedY + 25);
-
-
-            const scoreTextY = graphicHeight * 0.62; 
-            ctx.font = "700 20px 'Press Start 2P'"; 
-            ctx.fillStyle = "#FFFFFF";
-            ctx.fillText("Collected:", graphicWidth / 2, scoreTextY - 18);
+            ctx.fillText("Collected:", graphicWidth / 2, scoreTextY - 25);
             
-            ctx.font = "700 40px 'Press Start 2P'"; 
+            ctx.font = "700 50px 'Press Start 2P'"; 
             ctx.fillStyle = "#FFFF00";
-            ctx.fillText(score, graphicWidth / 2, scoreTextY + 25);
-            ctx.font = "700 20px 'Press Start 2P'"; 
+            ctx.shadowColor = "#FF8C00"; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 3; ctx.shadowBlur = 0;
+            ctx.fillText(score, graphicWidth / 2, scoreTextY + 30);
+            ctx.shadowColor = "transparent"; 
+            ctx.font = "700 24px 'Press Start 2P'"; 
             ctx.fillStyle = "#FFFFFF";
-            ctx.fillText("CDs!", graphicWidth / 2, scoreTextY + 60);
+            ctx.fillText("CDs!", graphicWidth / 2, scoreTextY + 80);
 
-            const cdSpriteForShare = createReflectiveCDSpriteEnhanced(60); 
-            ctx.drawImage(cdSpriteForShare, graphicWidth/2 - 30, scoreTextY + 100, 60, 60);
+            const cdSpriteForShare = createReflectiveCDSpriteEnhanced(70); 
+            ctx.drawImage(cdSpriteForShare, graphicWidth/2 - 35, scoreTextY + 125, 70, 70);
 
-            const promoY = graphicHeight * 0.90;
-            ctx.font = "10px 'Press Start 2P'"; ctx.fillStyle = "#B0B0D0";
+            const promoY = graphicHeight * 0.88;
+            ctx.font = "12px 'Press Start 2P'"; ctx.fillStyle = "#B0B0D0";
             ctx.fillText("Play Millo's 'Hit The Wall'", graphicWidth / 2, promoY);
+            // Removed "on Itch.io!" text from share graphic
 
             const dataUrl = graphicCanvas.toDataURL('image/png');
             const newWindow = window.open();
@@ -711,8 +708,8 @@
         function manageMusic(trackToPlay) {
             const allMusic = [menuMusic, gameplayMusic, endMenuMusic];
             allMusic.forEach(audioEl => {
-                if (audioEl && audioEl !== trackToPlay) { 
-                    if (audioEl.duration > 0 && !audioEl.paused) {
+                if (audioEl !== trackToPlay) {
+                    if (audioEl && audioEl.duration > 0 && !audioEl.paused) {
                         audioEl.pause();
                         audioEl.currentTime = 0;
                     }
@@ -729,7 +726,7 @@
             gameOverScreen.classList.add('hidden');
             gameplayScreen.classList.remove('hidden'); 
             gameplayScreen.style.display = 'flex'; 
-            onScreenControls.style.display = window.innerWidth <= 768 ? 'flex' : 'none'; 
+            onScreenControls.style.display = window.innerWidth <= 768 ? 'flex' : 'none'; // Show controls if mobile
             
             setMainCanvasDimensions(); 
             offscreenCanvas.width = RENDER_WIDTH; 
@@ -737,17 +734,13 @@
 
             initGame();
             gameRunning=true;
-            totalTimePlayedInSeconds = 0; 
             lastTime=performance.now();
             if (animationFrameId) cancelAnimationFrame(animationFrameId); 
             animationFrameId = requestAnimationFrame(gameLoop);
 
             if (gameTimerInterval) clearInterval(gameTimerInterval); 
             gameTimerInterval=setInterval(()=>{
-                if (!isTimeFrozen) { 
-                    timeLeft--;
-                    totalTimePlayedInSeconds++;
-                }
+                timeLeft--;
                 updateTimerDisplay();
                 if(timeLeft<=0) endGame();
             },1000);
@@ -756,31 +749,16 @@
 
         async function endGame(){ 
             gameRunning=false; 
-            clearInterval(gameTimerInterval); 
-            if(xRayTimerId) clearTimeout(xRayTimerId); isXRayModeActive = false;
-            if(slowdownTimerId) clearTimeout(slowdownTimerId); isSlowed = false; MOVE_SPEED = ORIGINAL_MOVE_SPEED;
-            if(timeFreezeEffectTimerId) clearTimeout(timeFreezeEffectTimerId); isTimeFrozen = false;
-            if(pathfinderTimerId) clearTimeout(pathfinderTimerId); isPathfinderActive = false;
-            if(fogTimerId) clearTimeout(fogTimerId); isFogActive = false;
-
+            clearInterval(gameTimerInterval);
             if(paAnnouncementTimer) clearInterval(paAnnouncementTimer);
             
             gameplayScreen.classList.add('hidden'); 
             gameplayScreen.style.display = 'none';
-            onScreenControls.style.display = 'none'; 
+            onScreenControls.style.display = 'none'; // Hide controls
             gameOverScreen.classList.remove('hidden');
-            
-            finalScoreDisplay.textContent = `${totalTimePlayedInSeconds}s Survived`;
-            statCDsCollected.textContent = regularCDsCollectedThisRound; 
-            // Update other stats if you re-add them to HTML
-            // statGoldenCDs.textContent = goldenCDsCollectedCount;
-            // statTimeFreezes.textContent = timeFreezeCollectedCount;
-            // statPathfinders.textContent = pathfinderCollectedCount;
-            // statCursedIdols.textContent = cursedIdolsCollectedCount;
-            // statGooPuddles.textContent = gooPuddlesSteppedOnCount;
-
-            gameOverMessage.textContent = `You lasted ${totalTimePlayedInSeconds}s and collected ${score} CDs!`; 
-
+            finalScoreDisplay.textContent=score; 
+            const p=`Player survived by collecting ${score} CDs in "Millo's Hit the Wall" (Survival Mode). Short, quirky, PS1 arcade game over message. Low CD count (0-5): Not much time bought!. Mid (6-10): Decent run!. High (11+): CD Hoarder Supreme! Max 25 words.`;
+            await fetchLLMResponse(p,gameOverMessage,true); 
             manageMusic(endMenuMusic);
         }
 
@@ -788,40 +766,16 @@
             offscreenCanvas.width=RENDER_WIDTH; offscreenCanvas.height=RENDER_HEIGHT; 
             offscreenCtx.imageSmoothingEnabled=false;
             particles = []; 
-            gooPuddles = [];
-            xraySpecsPosition.active = false;
-            timeFreezePosition.active = false;
-            pathfinderPosition.active = false;
-            cursedIdolPosition.active = false;
-
-            isXRayModeActive = false; if(xRayTimerId) clearTimeout(xRayTimerId);
-            isSlowed = false; MOVE_SPEED = ORIGINAL_MOVE_SPEED; if(slowdownTimerId) clearTimeout(slowdownTimerId);
-            isTimeFrozen = false; if(timeFreezeEffectTimerId) clearTimeout(timeFreezeEffectTimerId);
-            isPathfinderActive = false; if(pathfinderTimerId) clearTimeout(pathfinderTimerId);
-            isFogActive = false; if(fogTimerId) clearTimeout(fogTimerId);
-
 
             gameMap=MAP_DATA.map(r=>[...r]);let pP=0;
             for(let y=0;y<MAP_HEIGHT;y++){for(let x=0;x<MAP_WIDTH;x++)if(!pP&&gameMap[y][x]===0){player.x=(x+0.5)*TILE_SIZE;player.y=(y+0.5)*TILE_SIZE;player.angle=Math.PI/2;pP=1;break;}if(pP)break;}
             score=0; 
             timeLeft=INITIAL_TIME; 
-            totalTimePlayedInSeconds = 0;
-            // Reset all stat counters for the new game
-            regularCDsCollectedThisRound = 0; 
-            goldenCDsCollectedCount = 0;
-            timeFreezeCollectedCount = 0;
-            pathfinderCollectedCount = 0;
-            cursedIdolsCollectedCount = 0;
-            gooPuddlesSteppedOnCount = 0;
-
-
-            regularCDsCollectedForGoldenTrigger = 0; 
-            nextGoldenCDAfter = GOLDEN_CD_BASE_THRESHOLD; 
-            goldenCDSpawnedThisGame = false; 
-
-
-            updateScoreDisplay();updateTimerDisplay();respawnCD(); 
+            goldenCDSpawnedThisGame=false;
+            regularCDsCollected=0;
+            updateScoreDisplay();updateTimerDisplay();respawnCD();
             messageDisplay.textContent="Stay Alive! Collect CDs!"; 
+            collectedCDImage.src=textures.cdSprite.toDataURL(); 
             if(paAnnouncementTimer)clearInterval(paAnnouncementTimer);
             paAnnouncementTimer=setInterval(triggerPAAnnouncement,PA_ANNOUNCEMENT_INTERVAL);
             setTimeout(triggerPAAnnouncement,3500);
@@ -872,17 +826,14 @@
         window.addEventListener('keyup',(e)=>keys[e.key.toLowerCase()]=false);
         
         function handleInput(){ if(!gameRunning)return;let dx=0,dy=0;
-            const currentMoveSpeed = isSlowed ? ORIGINAL_MOVE_SPEED / 2 : ORIGINAL_MOVE_SPEED; 
-            if(keys['arrowup']||keys['w']){dx+=Math.cos(player.angle)*currentMoveSpeed;dy+=Math.sin(player.angle)*currentMoveSpeed;}
-            if(keys['arrowdown']||keys['s']){dx-=Math.cos(player.angle)*currentMoveSpeed;dy-=Math.sin(player.angle)*currentMoveSpeed;}
+            if(keys['arrowup']||keys['w']){dx+=Math.cos(player.angle)*MOVE_SPEED;dy+=Math.sin(player.angle)*MOVE_SPEED;}
+            if(keys['arrowdown']||keys['s']){dx-=Math.cos(player.angle)*MOVE_SPEED;dy-=Math.sin(player.angle)*MOVE_SPEED;}
             if(keys['arrowleft']||keys['a'])player.angle-=TURN_SPEED;if(keys['arrowright']||keys['d'])player.angle+=TURN_SPEED;
             player.angle=(player.angle+Math.PI*2)%(Math.PI*2);
             const nPX=player.x+dx,nPY=player.y+dy,pTX=Math.floor(nPX/TILE_SIZE),pTY=Math.floor(nPY/TILE_SIZE);
             if(gameMap[pTY]&&gameMap[pTY][pTX]===0){player.x=nPX;player.y=nPY;}
             else{const pTXC=Math.floor(player.x/TILE_SIZE),pTYC=Math.floor(player.y/TILE_SIZE);
                 if(gameMap[pTYC]&&gameMap[pTYC][pTX]===0)player.x=nPX;if(gameMap[pTY]&&gameMap[pTY][pTXC]===0)player.y=nPY;}
-            
-            // CD Collection
             if(cdPosition.active&&Math.hypot(player.x-cdPosition.x,player.y-cdPosition.y)<TILE_SIZE*0.65){
                 const isGoldenHit = cdPosition.isGolden;
                 createCDPickupEffect(cdPosition.x, cdPosition.y, isGoldenHit); 
@@ -891,67 +842,18 @@
                     timeLeft += TIME_PER_GOLDEN_CD;
                     goldenCdPickupSound.currentTime = 0; goldenCdPickupSound.play(); 
                     messageDisplay.textContent = `GOLDEN CD! +${TIME_PER_GOLDEN_CD} Sec!`;
-                    goldenCDsCollectedCount++;
-                    regularCDsCollectedForGoldenTrigger = 0; 
-                    nextGoldenCDAfter = Math.floor(Math.random() * 6) + 2; 
                 } else {
                     score++;
                     timeLeft += TIME_PER_CD;
                     cdPickupSound.currentTime = 0; cdPickupSound.play(); 
-                    regularCDsCollectedForGoldenTrigger++;
-                    regularCDsCollectedThisRound++; 
+                    regularCDsCollected++;
                     messageDisplay.textContent = `CD! +${TIME_PER_CD} Sec!`;
                 }
-                updateScoreDisplay(); updateTimerDisplay(); cdPosition.active=false;
-                setTimeout(()=>{if(gameRunning)respawnCD();},100);
-            }
-
-            // Power-up / Power-down Collections
-            const items = [timeFreezePosition, pathfinderPosition, cursedIdolPosition]; 
-            items.forEach(item => {
-                if (item.active && Math.hypot(player.x - item.x, player.y - item.y) < TILE_SIZE * 0.6) {
-                    item.active = false;
-                    switch(item.type) {
-                        case 'timeFreeze':
-                            isTimeFrozen = true; timeFreezeCollectedCount++;
-                            timeFreezeSound.currentTime = 0; timeFreezeSound.play();
-                            messageDisplay.textContent = "TIME FROZEN!";
-                            if(timeFreezeEffectTimerId) clearTimeout(timeFreezeEffectTimerId);
-                            timeFreezeEffectTimerId = setTimeout(() => { isTimeFrozen = false; messageDisplay.textContent = "Time Resumes!";}, TIME_FREEZE_DURATION);
-                            break;
-                        case 'pathfinder':
-                            isPathfinderActive = true; pathfinderCollectedCount++;
-                            pathfinderSound.currentTime = 0; pathfinderSound.play();
-                            messageDisplay.textContent = "CD BEACON ACTIVE!";
-                            if(pathfinderTimerId) clearTimeout(pathfinderTimerId);
-                            pathfinderTimerId = setTimeout(() => { isPathfinderActive = false; messageDisplay.textContent = "Beacon Faded."; }, PATHFINDER_DURATION);
-                            break;
-                        case 'cursedIdol': 
-                            isFogActive = true; cursedIdolsCollectedCount++;
-                            cursedIdolSound.currentTime = 0; cursedIdolSound.play();
-                            messageDisplay.textContent = "CURSED! VISIBILITY REDUCED!";
-                            if(fogTimerId) clearTimeout(fogTimerId);
-                            fogTimerId = setTimeout(() => { isFogActive = false; messageDisplay.textContent = "Curse Lifted!"; }, FOG_DURATION); 
-                            break;
-                    }
-                }
-            });
-
-            // Goo Puddle Collision
-            for (let i = gooPuddles.length - 1; i >= 0; i--) {
-                const puddle = gooPuddles[i];
-                if (puddle.active && Math.hypot(player.x - puddle.x, player.y - puddle.y) < TILE_SIZE * 0.5) {
-                    if (!isSlowed) { 
-                        isSlowed = true; gooPuddlesSteppedOnCount++;
-                        gooPuddleSound.currentTime = 0; gooPuddleSound.play();
-                        messageDisplay.textContent = "SLOWED DOWN BY GOO!";
-                        if(slowdownTimerId) clearTimeout(slowdownTimerId);
-                        slowdownTimerId = setTimeout(() => { isSlowed = false; messageDisplay.textContent = "Speed back to normal!"; }, SLOWDOWN_DURATION);
-                    }
-                    gooPuddles.splice(i, 1); 
-                }
-            }
-        }
+                updateScoreDisplay();
+                updateTimerDisplay(); 
+                cdPosition.active=false;
+                collectedCDImage.src = isGoldenHit ? textures.goldenCdSprite.toDataURL() : textures.cdSprite.toDataURL();
+                setTimeout(()=>{if(gameRunning)respawnCD();},100);}}
 
         function render(){
             if (!gameRunning) return; 
@@ -966,100 +868,21 @@
                     else if(gameMap[tY][tX]===1){hW=1;const bMX=tX*TILE_SIZE+TILE_SIZE/2,bMY=tY*TILE_SIZE+TILE_SIZE/2,rPX=player.x+eX*dTW,rPY=player.y+eY*dTW;const tAng=Math.atan2(rPY-bMY,rPX-bMX);
                         if(tAng>=-Math.PI*0.25&&tAng<Math.PI*0.25)hE=0;else if(tAng>=Math.PI*0.25&&tAng<Math.PI*0.75)hE=1;else if(tAng<-Math.PI*0.25&&tAng>=-Math.PI*0.75)hE=1;else hE=0;}}
                 const cD=dTW*Math.cos(rA-player.angle),wH=Math.min(RENDER_HEIGHT,(TILE_SIZE/cD)*RENDER_HEIGHT);const wT=(RENDER_HEIGHT/2)-wH/2,wHX=player.x+eX*dTW,wHY=player.y+eY*dTW;
-                let tXx=Math.floor(hE?wHX%TILE_SIZE:wHY%TILE_SIZE);
-                
-                if (isXRayModeActive) {
-                    offscreenCtx.globalAlpha = 0.2; 
-                    offscreenCtx.drawImage(textures.wall,tXx,0,1,TILE_SIZE,i,wT,1,wH);
-                    offscreenCtx.globalAlpha = 1;
-                    offscreenCtx.strokeStyle = XRAY_WALL_OUTLINE_COLOR;
-                    offscreenCtx.lineWidth = 0.5; 
-                    offscreenCtx.strokeRect(i + 0.25, wT + 0.25, 0.5, wH - 0.5); 
-                } else {
-                    offscreenCtx.drawImage(textures.wall,tXx,0,1,TILE_SIZE,i,wT,1,wH);
-                }
-                const sF=Math.max(0.05,1-(cD/(TILE_SIZE*6.5)));
-                if (!isXRayModeActive) { 
-                    offscreenCtx.fillStyle=`rgba(25,0,25,${1-sF*0.85})`;offscreenCtx.fillRect(i,wT,1,wH);
-                }
-                distToWallBuffer[i] = cD; 
-            }
-            
-            const itemsToDraw = [cdPosition, timeFreezePosition, pathfinderPosition, cursedIdolPosition, ...gooPuddles];
-            itemsToDraw.sort((a,b) => Math.hypot(b.x-player.x, b.y-player.y) - Math.hypot(a.x-player.x, a.y-player.y)); 
-
-            itemsToDraw.forEach(item => {
-                if(item.active){
-                    const dX=item.x-player.x,dY=item.y-player.y,dTS=Math.hypot(dX,dY);
-                    let sA=(Math.atan2(dY,dX)-player.angle+Math.PI*2)%(Math.PI*2);if(sA>Math.PI)sA-=Math.PI*2;
-                    
-                    let itemSprite = textures.cdSprite;
-                    let spriteScaleFactor = item.isGolden ? 0.75 : 0.65;
-                    if (item.type === 'goo') { itemSprite = textures.gooPuddleSprite; spriteScaleFactor = 0.5; } 
-                    else if (item.type === 'timeFreeze') { itemSprite = textures.timeFreezeSprite; spriteScaleFactor = 0.45; }
-                    else if (item.type === 'pathfinder') { itemSprite = textures.pathfinderSprite; spriteScaleFactor = 0.45; }
-                    else if (item.type === 'cursedIdol') { itemSprite = textures.cursedIdolSprite; spriteScaleFactor = 0.4; }
-                    else if (item.isGolden) { itemSprite = textures.goldenCdSprite; }
-
-
-                    const sS=Math.min(RENDER_HEIGHT,(TILE_SIZE/dTS)*RENDER_HEIGHT * spriteScaleFactor); 
-                    
-                    if(Math.abs(sA)<FOV/2+0.35){
-                        const sSX=RENDER_WIDTH/2+(sA/(FOV/2))*(RENDER_WIDTH/2)-sS/2;
-                        let sSY=(RENDER_HEIGHT/2)-sS/2+(TILE_SIZE/dTS*3.5); 
-                        if(item.type === 'goo') { 
-                             sSY=RENDER_HEIGHT/2 + (TILE_SIZE*0.4 / dTS) * (RENDER_HEIGHT/2) - sS*0.25; 
-                        }
-
-
-                        if(sSX+sS>0&&sSX<RENDER_WIDTH&&dTS>TILE_SIZE*0.1){
-                            let isOccluded = false;
-                            const rayIndex = Math.floor(sSX + sS/2);
-                            if(rayIndex >=0 && rayIndex < NUM_RAYS){
-                                const distToWallAtSpriteAngle = distToWallBuffer[rayIndex] * Math.cos( (rayIndex/NUM_RAYS - 0.5) * FOV );
-                                if(dTS > distToWallAtSpriteAngle + TILE_SIZE*0.05) isOccluded = true; 
-                            }
-
-
-                            if(!isOccluded){
-                                offscreenCtx.globalAlpha=Math.max(0.5,1-dTS/(TILE_SIZE*12));
-                                if (item.type === 'goo') {
-                                    offscreenCtx.drawImage(itemSprite,sSX,sSY,sS,sS*0.5); 
-                                } else {
-                                    let drawSize = sS;
-                                    if (item === cdPosition && isPathfinderActive) { 
-                                        const pulse = Math.sin(Date.now()/150) * 0.2 + 1.0; 
-                                        drawSize *= pulse;
-                                        offscreenCtx.shadowColor = 'rgba(255,255,255,0.9)';
-                                        offscreenCtx.shadowBlur = 15 * Math.abs(Math.sin(Date.now()/150));
-                                    }
-                                    offscreenCtx.drawImage(itemSprite,sSX,sSY,drawSize,drawSize);
-                                    offscreenCtx.shadowColor = 'transparent'; offscreenCtx.shadowBlur = 0;
-                                }
-                                offscreenCtx.globalAlpha=1;
-                            }
-                        }
-                    }
-                }
-            });
+                let tXx=Math.floor(hE?wHX%TILE_SIZE:wHY%TILE_SIZE);offscreenCtx.drawImage(textures.wall,tXx,0,1,TILE_SIZE,i,wT,1,wH);
+                const sF=Math.max(0.05,1-(cD/(TILE_SIZE*6.5)));offscreenCtx.fillStyle=`rgba(25,0,25,${1-sF*0.85})`;offscreenCtx.fillRect(i,wT,1,wH);}
+            if(cdPosition.active){const dX=cdPosition.x-player.x,dY=cdPosition.y-player.y,dTS=Math.hypot(dX,dY);
+                let sA=(Math.atan2(dY,dX)-player.angle+Math.PI*2)%(Math.PI*2);if(sA>Math.PI)sA-=Math.PI*2;
+                const sS=Math.min(RENDER_HEIGHT,(TILE_SIZE/dTS)*RENDER_HEIGHT*(cdPosition.isGolden ? 0.75 : 0.65)); 
+                if(Math.abs(sA)<FOV/2+0.35){const sSX=RENDER_WIDTH/2+(sA/(FOV/2))*(RENDER_WIDTH/2)-sS/2,sSY=(RENDER_HEIGHT/2)-sS/2+(TILE_SIZE/dTS*3.5);
+                    if(sSX+sS>0&&sSX<RENDER_WIDTH&&dTS>TILE_SIZE*0.1){const cRC=Math.floor(sSX+sS/2);
+                        if(cRC>=0&&cRC<NUM_RAYS){let iO=0;if(dTS<TILE_SIZE*4){const cRA=player.angle-FOV/2+(cRC/NUM_RAYS)*FOV;let dTWS=0,hWFS=0;const eXS=Math.cos(cRA),eYS=Math.sin(cRA);
+                            while(!hWFS&&dTWS<dTS-TILE_SIZE*0.05){dTWS+=1;const tXS=Math.floor((player.x+eXS*dTWS)/TILE_SIZE),tYS=Math.floor((player.y+eYS*dTWS)/TILE_SIZE);if(gameMap[tYS]&&gameMap[tYS][tXS]===1){iO=1;break;}}}
+                            if(!iO){offscreenCtx.globalAlpha=Math.max(0.5,1-dTS/(TILE_SIZE*12));const spriteToDraw=cdPosition.isGolden?textures.goldenCdSprite:textures.cdSprite;offscreenCtx.drawImage(spriteToDraw,sSX,sSY,sS,sS);offscreenCtx.globalAlpha=1;}}}}}
             
             if (gameRunning) { 
                 updateParticles();
                 drawParticles(); 
             }
-
-            // Fog/Darkness Effect
-            if (isFogActive) {
-                offscreenCtx.fillStyle = 'rgba(10,0,10,0.85)'; 
-                offscreenCtx.fillRect(0,0,RENDER_WIDTH, RENDER_HEIGHT);
-                offscreenCtx.globalCompositeOperation = 'destination-out';
-                const clearRadius = RENDER_WIDTH / 4; 
-                offscreenCtx.beginPath();
-                offscreenCtx.arc(RENDER_WIDTH/2, RENDER_HEIGHT/2 + RENDER_HEIGHT*0.05, clearRadius, 0, Math.PI*2); 
-                offscreenCtx.fill();
-                offscreenCtx.globalCompositeOperation = 'source-over';
-            }
-
 
             const mainCtx=mainCanvas.getContext('2d');mainCtx.imageSmoothingEnabled=false;
             mainCtx.drawImage(offscreenCanvas,0,0,mainCanvas.width,mainCanvas.height);
@@ -1089,7 +912,6 @@
             gameOverScreen.classList.add('hidden');
             gameplayScreen.classList.add('hidden'); 
             gameplayScreen.style.display = 'none';
-            onScreenControls.style.display = 'none';
             manageMusic(menuMusic); 
         });
         shareScoreButton.addEventListener('click', generateShareableScoreGraphic);
@@ -1099,7 +921,6 @@
             manageMusic(menuMusic); 
             console.log("Game initialized.");
             titleScreen.classList.remove('hidden');gameplayScreen.classList.add('hidden');gameOverScreen.classList.add('hidden');
-            onScreenControls.style.display = 'none'; 
         })();
     </script>
 </body>
