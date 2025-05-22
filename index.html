@@ -24,14 +24,13 @@
             justify-content: center;
             position: relative;
         }
-        #gameCanvas {
+        #gameCanvas { /* This is the main 3D rendering canvas */
             border: 2px solid #303050; 
             background-color: #000;
             image-rendering: pixelated;
             image-rendering: -moz-crisp-edges;
             image-rendering: crisp-edges;
-            max-width: 100%; 
-            max-height: calc(100vh - 150px); 
+            display: block; 
         }
         .screen-panel {
             background-color: rgba(15, 15, 30, 0.92); 
@@ -161,11 +160,11 @@
         }
         .stats-grid { 
             display: grid;
-            grid-template-columns: 1fr; /* Simplified to one column for basic stats */
+            grid-template-columns: 1fr; 
             gap: 5px; 
-            font-size: 12px; /* Slightly larger for main stats */
+            font-size: 12px; 
             margin-top: 10px;
-            text-align: center; /* Center stats */
+            text-align: center; 
         }
         .stats-grid span {
             color: #FFFF88; 
@@ -313,7 +312,7 @@
                 <div id="finalScoreDisplay">0s Survived</div> 
                 <div class="stats-grid">
                     <div>CDs Collected: <span id="statCDsCollected">0</span></div>
-                    </div>
+                </div>
                 <p id="gameOverMessage" class="mt-4 mb-3 min-h-[2em] flex items-center justify-center" style="font-size:10px;"></p>
             </div>
             
@@ -366,7 +365,7 @@
         const pathfinderSound = document.getElementById('pathfinderSound');
         const cursedIdolSound = document.getElementById('cursedIdolSound');
         const onScreenControls = document.getElementById('onScreenControls'); 
-        const statCDsCollected = document.getElementById('statCDsCollected'); // For simplified game over stats
+        const statCDsCollected = document.getElementById('statCDsCollected');
         
         // --- Offscreen Canvas for 3D Pixelation ---
         const offscreenCanvas = document.createElement('canvas'); 
@@ -403,14 +402,13 @@
         let cursedIdolPosition = { x:0, y:0, active: false, type: 'cursedIdol'}; 
         const POWERUP_SPAWN_CHANCE = 0.15; 
 
-        let score = 0; // Total CDs collected (for display during gameplay)
+        let score = 0; 
         let timeLeft = INITIAL_TIME;
         let totalTimePlayedInSeconds = 0;
-        // Removed detailed stat tracking variables like goldenCDsCollectedCount, etc. as they are not displayed
-
+        
         let gameRunning = false, gameTimerInterval = null, paAnnouncementTimer = null; 
         let nextGoldenCDAfter = GOLDEN_CD_BASE_THRESHOLD; 
-        let regularCDsCollectedForGoldenTrigger = 0; // Still needed for Golden CD logic
+        let regularCDsCollectedForGoldenTrigger = 0; 
 
         let isXRayModeActive = false;
         let xRayTimerId = null;
@@ -794,14 +792,15 @@
             gameOverScreen.classList.remove('hidden');
             
             finalScoreDisplay.textContent = `${totalTimePlayedInSeconds}s Survived`;
-            statRegularCDs.textContent = regularCDsCollectedThisRound; // Use the correct variable
-            statGoldenCDs.textContent = goldenCDsCollectedCount;
-            statTimeFreezes.textContent = timeFreezeCollectedCount;
-            statPathfinders.textContent = pathfinderCollectedCount;
-            statCursedIdols.textContent = cursedIdolsCollectedCount;
-            statGooPuddles.textContent = gooPuddlesSteppedOnCount;
+            statCDsCollected.textContent = regularCDsCollectedThisRound; 
+            // Update other stats if you re-add them to HTML
+            // statGoldenCDs.textContent = goldenCDsCollectedCount;
+            // statTimeFreezes.textContent = timeFreezeCollectedCount;
+            // statPathfinders.textContent = pathfinderCollectedCount;
+            // statCursedIdols.textContent = cursedIdolsCollectedCount;
+            // statGooPuddles.textContent = gooPuddlesSteppedOnCount;
 
-            gameOverMessage.textContent = `You lasted ${totalTimePlayedInSeconds}s and found ${score} total value in CDs!`; 
+            gameOverMessage.textContent = `You lasted ${totalTimePlayedInSeconds}s and collected ${score} CDs!`; 
 
             manageMusic(endMenuMusic);
         }
@@ -828,12 +827,14 @@
             score=0; 
             timeLeft=INITIAL_TIME; 
             totalTimePlayedInSeconds = 0;
+            // Reset all stat counters for the new game
+            regularCDsCollectedThisRound = 0; 
             goldenCDsCollectedCount = 0;
-            regularCDsCollectedThisRound = 0;
             timeFreezeCollectedCount = 0;
             pathfinderCollectedCount = 0;
             cursedIdolsCollectedCount = 0;
             gooPuddlesSteppedOnCount = 0;
+
 
             regularCDsCollectedForGoldenTrigger = 0; 
             nextGoldenCDAfter = GOLDEN_CD_BASE_THRESHOLD; 
