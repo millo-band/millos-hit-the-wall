@@ -168,7 +168,7 @@
             box-shadow: 2px 2px 0px #202040;
         }
         
-        #finalScoreDisplay { /* Now used for Time Survived */
+        #finalScoreDisplay { 
             font-size: 28px; 
             color: #FFFF00; 
             text-shadow: 2px 2px 0px #FF8C00; 
@@ -215,7 +215,6 @@
         }
 
         #onScreenControls {
-            display: none; 
             width: 100%;
             position: fixed;
             bottom: 0;
@@ -296,7 +295,14 @@
     <audio id="endMenuMusic" loop src="end-menu-music.mp3"></audio>
     <audio id="cdPickupSound" src="cd.mp3"></audio>
     <audio id="goldenCdPickupSound" src="golden-cd.mp3"></audio>
-    <audio id="xraySpecsSound" src="YOUR_XRAY_SFX.wav"></audio> <audio id="gooPuddleSound" src="YOUR_GOO_SFX.wav"></audio> <audio id="timeFreezeSound" src="YOUR_TIME_FREEZE_SFX.wav"></audio> <audio id="pathfinderSound" src="YOUR_PATHFINDER_SFX.wav"></audio> <audio id="cursedIdolSound" src="YOUR_CURSED_IDOL_SFX.wav"></audio> <div id="gameContainer">
+    <audio id="xraySpecsSound" src="YOUR_XRAY_SFX.wav"></audio> 
+    <audio id="gooPuddleSound" src="YOUR_GOO_SFX.wav"></audio> 
+    <audio id="timeFreezeSound" src="YOUR_TIME_FREEZE_SFX.wav"></audio> 
+    <audio id="pathfinderSound" src="YOUR_PATHFINDER_SFX.wav"></audio> 
+    <audio id="cursedIdolSound" src="YOUR_CURSED_IDOL_SFX.wav"></audio> 
+
+
+    <div id="gameContainer">
         <div id="titleScreen" class="screen-panel"> 
             <canvas id="logoCanvas"></canvas>
             <p id="pressStartPrompt">PRESS ENTER TO START</p>
@@ -364,7 +370,6 @@
         const timerProgressBar = document.getElementById('timerProgressBar'); 
         const scoreDisplay = document.getElementById('scoreDisplay'); 
         const finalScoreDisplay = document.getElementById('finalScoreDisplay'); 
-        // const collectedCDImage = document.getElementById('collectedCDImage'); // Removed
         const gameOverMessage = document.getElementById('gameOverMessage');
         const logoCanvas = document.getElementById('logoCanvas');
         const arrowUpButton = document.getElementById('arrowUp');
@@ -408,40 +413,37 @@
         const TIME_PER_GOLDEN_CD = 10; 
         const PA_ANNOUNCEMENT_INTERVAL = 17000;
         const GOLDEN_CD_BASE_THRESHOLD = 1; 
-        const GOLDEN_CD_POINTS_VALUE = 5; // Still used for potential score, though time is primary
+        const GOLDEN_CD_POINTS_VALUE = 5; 
         const XRAY_DURATION = 10000; 
         const SLOWDOWN_DURATION = 3000; 
         const TIME_FREEZE_DURATION = 7000; 
         const PATHFINDER_DURATION = 10000; 
-        const FOG_DURATION = 8000; // Renamed from Cursed Idol duration
+        const FOG_DURATION = 8000; 
 
         // --- Game State ---
         let player = { x: 0, y: 0, angle: 0 };
         let gameMap = [];
-        // Items
         let cdPosition = { x: 0, y: 0, active: false, isGolden: false };
-        let xraySpecsPosition = { x: 0, y: 0, active: false, type: 'xray' }; // Kept for potential future use
+        let xraySpecsPosition = { x: 0, y: 0, active: false, type: 'xray' }; 
         let gooPuddles = []; 
         const MAX_GOO_PUDDLES = 2; 
         let timeFreezePosition = { x:0, y:0, active: false, type: 'timeFreeze'};
         let pathfinderPosition = { x:0, y:0, active: false, type: 'pathfinder'};
-        let cursedIdolPosition = { x:0, y:0, active: false, type: 'cursedIdol'}; // This is the fog item
-        const POWERUP_SPAWN_CHANCE = 0.15; // Slightly increased chance
+        let cursedIdolPosition = { x:0, y:0, active: false, type: 'cursedIdol'}; 
+        const POWERUP_SPAWN_CHANCE = 0.15; 
 
-        // Stats
-        let score = 0; // Total CDs collected (for display during gameplay)
+        let score = 0; 
         let timeLeft = INITIAL_TIME;
         let totalTimePlayedInSeconds = 0;
         let goldenCDsCollectedCount = 0;
-        let regularCDsCollectedThisRound = 0; // Used for Golden CD trigger, reset per game
+        let regularCDsCollectedThisRound = 0; 
         let timeFreezeCollectedCount = 0;
         let pathfinderCollectedCount = 0;
         let cursedIdolsCollectedCount = 0;
         let gooPuddlesSteppedOnCount = 0;
 
-
         let gameRunning = false, gameTimerInterval = null, paAnnouncementTimer = null; 
-        let nextGoldenCDAfter = GOLDEN_CD_BASE_THRESHOLD; // How many regular CDs until next golden chance
+        let nextGoldenCDAfter = GOLDEN_CD_BASE_THRESHOLD; 
 
         let isXRayModeActive = false;
         let xRayTimerId = null;
@@ -476,7 +478,7 @@
             ceiling: createNightSkyTexture(PS1_NIGHT_SKY_1, PS1_NIGHT_SKY_2),
             cdSprite: createReflectiveCDSpriteEnhanced(),
             goldenCdSprite: createGoldenCDSprite(),
-            xraySpecsSprite: createXRaySpecsSprite(), // Kept for potential future use
+            xraySpecsSprite: createXRaySpecsSprite(), 
             gooPuddleSprite: createGooPuddleSprite(),
             timeFreezeSprite: createTimeFreezeSprite(),
             pathfinderSprite: createPathfinderSprite(),
@@ -625,7 +627,7 @@
                         x: (newPos.x + 0.5) * TILE_SIZE,
                         y: (newPos.y + 0.5) * TILE_SIZE,
                         active: true,
-                        type: 'goo' // Add type for consistent item handling
+                        type: 'goo' 
                     });
                 }
             }
@@ -641,7 +643,7 @@
 
                 if (regularCDsCollectedForGoldenTrigger >= nextGoldenCDAfter) {
                     cdPosition.isGolden = true;
-                    regularCDsCollectedForGoldenTrigger = 0; // Reset counter
+                    regularCDsCollectedForGoldenTrigger = 0; 
                     nextGoldenCDAfter = Math.floor(Math.random() * 6) + 2; // 2-7 for next one
                     messageDisplay.textContent = "A GOLDEN CD APPEARS!";
                 } else {
@@ -651,7 +653,7 @@
             
             if (!timeFreezePosition.active && Math.random() < POWERUP_SPAWN_CHANCE) spawnPowerUp(timeFreezePosition, 'timeFreeze');
             if (!pathfinderPosition.active && Math.random() < POWERUP_SPAWN_CHANCE) spawnPowerUp(pathfinderPosition, 'pathfinder');
-            if (!cursedIdolPosition.active && Math.random() < POWERUP_SPAWN_CHANCE * 0.7) spawnPowerUp(cursedIdolPosition, 'cursedIdol'); // Slightly less common
+            if (!cursedIdolPosition.active && Math.random() < POWERUP_SPAWN_CHANCE * 0.7) spawnPowerUp(cursedIdolPosition, 'cursedIdol'); 
             
             if (gooPuddles.length < MAX_GOO_PUDDLES && Math.random() < 0.15) { 
                 spawnGooPuddle();
@@ -710,7 +712,7 @@
             ctx.fillStyle = "#FFF0F5"; 
             ctx.fillText("Millo's", graphicWidth / 2, millosY);
 
-            const htwBaseY = graphicHeight * 0.25; // Adjusted Y for stacked title
+            const htwBaseY = graphicHeight * 0.25; 
             const lineHeight = 36; 
             const hitTheWallFontSize = 32; 
             ctx.font = `700 ${hitTheWallFontSize}px 'Press Start 2P'`; 
@@ -724,7 +726,7 @@
             ctx.fillText("The", graphicWidth / 2, htwBaseY + lineHeight);
             ctx.fillText("Wall", graphicWidth / 2, htwBaseY + lineHeight * 2);
             
-            const survivedY = graphicHeight * 0.48; // Adjusted Y
+            const survivedY = graphicHeight * 0.48; 
             ctx.font = "700 20px 'Press Start 2P'";
             ctx.fillStyle = "#FFFFFF";
             ctx.fillText("Survived:", graphicWidth / 2, survivedY - 18);
@@ -733,7 +735,7 @@
             ctx.fillText(totalTimePlayedInSeconds + "s", graphicWidth / 2, survivedY + 25);
 
 
-            const scoreTextY = graphicHeight * 0.62; // Adjusted Y
+            const scoreTextY = graphicHeight * 0.62; 
             ctx.font = "700 20px 'Press Start 2P'"; 
             ctx.fillStyle = "#FFFFFF";
             ctx.fillText("Collected:", graphicWidth / 2, scoreTextY - 18);
@@ -864,12 +866,11 @@
 
             regularCDsCollectedForGoldenTrigger = 0; 
             nextGoldenCDAfter = GOLDEN_CD_BASE_THRESHOLD; 
-            goldenCDSpawnedThisGame = false; // Reset for the very first golden CD logic
+            goldenCDSpawnedThisGame = false; 
 
 
             updateScoreDisplay();updateTimerDisplay();respawnCD(); 
             messageDisplay.textContent="Stay Alive! Collect CDs!"; 
-            // collectedCDImage.src=textures.cdSprite.toDataURL(); // Not needed as stats are shown
             if(paAnnouncementTimer)clearInterval(paAnnouncementTimer);
             paAnnouncementTimer=setInterval(triggerPAAnnouncement,PA_ANNOUNCEMENT_INTERVAL);
             setTimeout(triggerPAAnnouncement,3500);
@@ -941,33 +942,25 @@
                     messageDisplay.textContent = `GOLDEN CD! +${TIME_PER_GOLDEN_CD} Sec!`;
                     goldenCDsCollectedCount++;
                     regularCDsCollectedForGoldenTrigger = 0; 
-                    nextGoldenCDAfter = Math.floor(Math.random() * 6) + 2; // 2-7
+                    nextGoldenCDAfter = Math.floor(Math.random() * 6) + 2; 
                 } else {
                     score++;
                     timeLeft += TIME_PER_CD;
                     cdPickupSound.currentTime = 0; cdPickupSound.play(); 
                     regularCDsCollectedForGoldenTrigger++;
+                    regularCDsCollectedThisRound++; // For Golden CD trigger after base threshold
                     messageDisplay.textContent = `CD! +${TIME_PER_CD} Sec!`;
                 }
                 updateScoreDisplay(); updateTimerDisplay(); cdPosition.active=false;
-                // collectedCDImage.src = isGoldenHit ? textures.goldenCdSprite.toDataURL() : textures.cdSprite.toDataURL(); // Not needed
                 setTimeout(()=>{if(gameRunning)respawnCD();},100);
             }
 
             // Power-up / Power-down Collections
-            const items = [xraySpecsPosition, timeFreezePosition, pathfinderPosition, cursedIdolPosition];
+            const items = [timeFreezePosition, pathfinderPosition, cursedIdolPosition]; // Removed xraySpecsPosition
             items.forEach(item => {
                 if (item.active && Math.hypot(player.x - item.x, player.y - item.y) < TILE_SIZE * 0.6) {
                     item.active = false;
-                    // messageDisplay.textContent = `POWER-UP! ${item.type.toUpperCase()}`; // Message set by specific power-up
                     switch(item.type) {
-                        case 'xray': // Kept for example, can be removed if not used
-                            isXRayModeActive = true; xraySpecsCollectedCount++;
-                            xraySpecsSound.currentTime = 0; xraySpecsSound.play();
-                            messageDisplay.textContent = "X-RAY SPECS ACTIVE!";
-                            if(xRayTimerId) clearTimeout(xRayTimerId);
-                            xRayTimerId = setTimeout(() => { isXRayModeActive = false; messageDisplay.textContent = "X-Ray Specs Wore Off!"; }, XRAY_DURATION);
-                            break;
                         case 'timeFreeze':
                             isTimeFrozen = true; timeFreezeCollectedCount++;
                             timeFreezeSound.currentTime = 0; timeFreezeSound.play();
@@ -982,7 +975,7 @@
                             if(pathfinderTimerId) clearTimeout(pathfinderTimerId);
                             pathfinderTimerId = setTimeout(() => { isPathfinderActive = false; messageDisplay.textContent = "Beacon Faded."; }, PATHFINDER_DURATION);
                             break;
-                        case 'cursedIdol': // This is the Fog/Darkness
+                        case 'cursedIdol': 
                             isFogActive = true; cursedIdolsCollectedCount++;
                             cursedIdolSound.currentTime = 0; cursedIdolSound.play();
                             messageDisplay.textContent = "CURSED! VISIBILITY REDUCED!";
@@ -1038,11 +1031,10 @@
                 if (!isXRayModeActive) { 
                     offscreenCtx.fillStyle=`rgba(25,0,25,${1-sF*0.85})`;offscreenCtx.fillRect(i,wT,1,wH);
                 }
-                distToWallBuffer[i] = cD; // Store distance for occlusion check
+                distToWallBuffer[i] = cD; 
             }
             
-            // Draw Items (CDs, Power-ups, Obstacles)
-            const itemsToDraw = [cdPosition, xraySpecsPosition, timeFreezePosition, pathfinderPosition, cursedIdolPosition, ...gooPuddles];
+            const itemsToDraw = [cdPosition, timeFreezePosition, pathfinderPosition, cursedIdolPosition, ...gooPuddles];
             itemsToDraw.sort((a,b) => Math.hypot(b.x-player.x, b.y-player.y) - Math.hypot(a.x-player.x, a.y-player.y)); 
 
             itemsToDraw.forEach(item => {
@@ -1052,8 +1044,7 @@
                     
                     let itemSprite = textures.cdSprite;
                     let spriteScaleFactor = item.isGolden ? 0.75 : 0.65;
-                    if (item.type === 'xray') { itemSprite = textures.xraySpecsSprite; spriteScaleFactor = 0.4; }
-                    else if (item.type === 'goo') { itemSprite = textures.gooPuddleSprite; spriteScaleFactor = 0.5; } 
+                    if (item.type === 'goo') { itemSprite = textures.gooPuddleSprite; spriteScaleFactor = 0.5; } 
                     else if (item.type === 'timeFreeze') { itemSprite = textures.timeFreezeSprite; spriteScaleFactor = 0.45; }
                     else if (item.type === 'pathfinder') { itemSprite = textures.pathfinderSprite; spriteScaleFactor = 0.45; }
                     else if (item.type === 'cursedIdol') { itemSprite = textures.cursedIdolSprite; spriteScaleFactor = 0.4; }
@@ -1075,7 +1066,7 @@
                             const rayIndex = Math.floor(sSX + sS/2);
                             if(rayIndex >=0 && rayIndex < NUM_RAYS){
                                 const distToWallAtSpriteAngle = distToWallBuffer[rayIndex] * Math.cos( (rayIndex/NUM_RAYS - 0.5) * FOV );
-                                if(dTS > distToWallAtSpriteAngle + TILE_SIZE*0.05) isOccluded = true; // Slight offset for better feel
+                                if(dTS > distToWallAtSpriteAngle + TILE_SIZE*0.05) isOccluded = true; 
                             }
 
 
@@ -1108,10 +1099,10 @@
 
             // Fog/Darkness Effect
             if (isFogActive) {
-                offscreenCtx.fillStyle = 'rgba(10,0,10,0.85)'; // Darker purple fog
+                offscreenCtx.fillStyle = 'rgba(10,0,10,0.85)'; 
                 offscreenCtx.fillRect(0,0,RENDER_WIDTH, RENDER_HEIGHT);
                 offscreenCtx.globalCompositeOperation = 'destination-out';
-                const clearRadius = RENDER_WIDTH / 4; // Smaller clear area
+                const clearRadius = RENDER_WIDTH / 4; 
                 offscreenCtx.beginPath();
                 offscreenCtx.arc(RENDER_WIDTH/2, RENDER_HEIGHT/2 + RENDER_HEIGHT*0.05, clearRadius, 0, Math.PI*2); 
                 offscreenCtx.fill();
