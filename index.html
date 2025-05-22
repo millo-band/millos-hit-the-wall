@@ -273,11 +273,11 @@
     </style>
 </head>
 <body class="select-none">
-    <audio id="menuMusic" loop src="menu_music.mp3"></audio> 
-    <audio id="gameplayMusic" loop src="millo_theme.mp3"></audio> 
-    <audio id="endMenuMusic" loop src="end-menu-music.mp3"></audio>
-    <audio id="cdPickupSound" src="cd.mp3"></audio>
-    <audio id="goldenCdPickupSound" src="golden-cd.mp3"></audio>
+    <!-- <audio id="menuMusic" loop src="menu_music.mp3"></audio> --> 
+    <!-- <audio id="gameplayMusic" loop src="millo_theme.mp3"></audio> --> 
+    <!-- <audio id="endMenuMusic" loop src="end-menu-music.mp3"></audio> -->
+    <!-- <audio id="cdPickupSound" src="cd.mp3"></audio> -->
+    <!-- <audio id="goldenCdPickupSound" src="golden-cd.mp3"></audio> -->
     <audio id="xraySpecsSound" src="YOUR_XRAY_SFX.wav"></audio> 
     <audio id="gooPuddleSound" src="YOUR_GOO_SFX.wav"></audio> 
     <audio id="timeFreezeSound" src="YOUR_TIME_FREEZE_SFX.wav"></audio> 
@@ -336,6 +336,11 @@
     </div>
 
     <script type="module">
+
+window.onerror = function (message, source, lineno, colno, error) {
+  alert("Error: " + message + "\n" + source + ":" + lineno);
+};
+
         // --- DOM Elements ---
         const titleScreen = document.getElementById('titleScreen');
         const gameplayScreen = document.getElementById('gameplayScreen');
