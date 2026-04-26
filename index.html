@@ -1,991 +1,1227 @@
-<!--
-    Millo's "Hit The Wall" - Ultimate Arcade Edition
-
-    To deploy on Itch.io:
-    1. PASTE YOUR FIREBASE CONFIGURATION OBJECT into the JavaScript below where indicated
-       if you want the online scoreboard to function.
-    2. Save this entire code as "index.html".
-    3. Create a ZIP file containing ONLY this "index.html" file.
-    4. Upload the ZIP to Itch.io (Kind = HTML. Embed in page. Viewport e.g. 800x600).
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Millo's "Hit the Wall" - Ultimate Edition</title>
+    <title>Millo's "Hit the Wall"</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        .hidden { display: none !important; }
+
         body {
-            font-family: 'Press Start 2P', 'Courier New', monospace;
-            margin: 0;
+            font-family: 'Press Start 2P', monospace;
+            background: #000;
+            color: #E0E0FF;
             overflow: hidden;
-            background-color: #000000; 
-            color: #E0E0FF; 
-            font-size: 10px; 
+            user-select: none;
         }
+
+        /* ── CRT scanline + vignette overlay ── */
+        #crtOverlay {
+            position: fixed; inset: 0; z-index: 999; pointer-events: none;
+            background:
+                repeating-linear-gradient(
+                    0deg,
+                    transparent 0px, transparent 3px,
+                    rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px
+                ),
+                radial-gradient(ellipse at center,
+                    transparent 55%,
+                    rgba(0,0,0,0.65) 100%
+                );
+        }
+
         #gameContainer {
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
+            width: 100vw; height: 100vh;
+            position: relative; overflow: hidden;
         }
-        #gameCanvas { 
-            position: absolute; 
-            top: 0; 
-            left: 0;
-            width: 100%; 
-            height: 100%;
-            background-color: #000;
-            image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
-            display: block; 
-            z-index: 1;
+
+        /* ══════════════════════════════════
+           TITLE SCREEN
+        ══════════════════════════════════ */
+        #titleScreen {
+            position: absolute; inset: 0; z-index: 20;
+            background: #000;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            overflow: hidden;
         }
-        .screen-panel {
-            background-color: rgba(15, 15, 30, 0.92); 
-            border: 2px solid #505070; 
-            padding: 20px 30px; 
-            border-radius: 0px; 
-            box-shadow: 4px 4px 0px #202040; 
-            max-width: 90%;
-            color: #FFFFFF;
+
+        /* Scrolling grid floor */
+        #titleScreen::before {
+            content: '';
+            position: absolute; inset: 0;
+            background-image:
+                linear-gradient(rgba(255,20,147,0.12) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,20,147,0.12) 1px, transparent 1px);
+            background-size: 48px 48px;
+            animation: gridScroll 2.5s linear infinite;
+            mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.6) 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.6) 100%);
+        }
+        @keyframes gridScroll {
+            from { background-position: 0 0; }
+            to   { background-position: 0 48px; }
+        }
+
+        /* Top fade to black */
+        #titleScreen::after {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 35%;
+            background: linear-gradient(to bottom, #000 0%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .title-inner {
+            position: relative; z-index: 2;
+            display: flex; flex-direction: column;
+            align-items: center; gap: 0;
             text-align: center;
-            z-index: 20;
+            padding: 0 20px;
         }
-        #titleScreen { 
-            max-width: 480px; 
-            padding: 25px 35px; 
-            cursor: pointer;
+
+        .title-presented-by {
+            font-size: 9px;
+            color: #FF69B4;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            text-shadow: 0 0 12px #FF1493;
+            margin-bottom: 16px;
+            opacity: 0.9;
         }
-        #logoCanvas {
-            width: 400px; 
-            max-width: 90%; 
-            height: 180px; 
-            margin-bottom: 25px; 
-            image-rendering: pixelated;
-            border: 2px solid #202040; 
-            background-color: #080810; 
+
+        .title-hit {
+            font-size: clamp(36px, 8vw, 64px);
+            color: #FFF;
+            line-height: 1;
+            text-shadow:
+                3px 3px 0 #C2185B,
+                0 0 20px rgba(255,20,147,0.8),
+                0 0 50px rgba(255,20,147,0.4);
+            letter-spacing: 4px;
         }
-        .title-text-small { 
-             font-size: 18px;
-             text-shadow: 1px 1px 0px #DDA0DD, 2px 2px 0px #800080; 
-             color: #FFF0F5; 
-             margin-bottom: 10px;
-             line-height: 1.2;
+
+        .title-the-wall {
+            font-size: clamp(52px, 13vw, 100px);
+            color: #FFFF00;
+            line-height: 1;
+            margin-bottom: 6px;
+            text-shadow:
+                4px 4px 0 #C8800D,
+                0 0 25px rgba(255,220,0,0.9),
+                0 0 60px rgba(255,140,0,0.5);
+            letter-spacing: 2px;
         }
-        .screen-panel p {
-            font-size: 10px; 
-            line-height: 1.6;
+
+        .title-divider {
+            width: 280px; max-width: 90vw;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #FF1493, #FFFF00, #FF1493, transparent);
+            margin: 18px 0;
         }
+
+        .title-levels {
+            display: flex; gap: clamp(10px, 3vw, 28px);
+            margin-bottom: 30px;
+        }
+        .title-level-chip {
+            font-size: 7px;
+            color: #A0A0C0;
+            padding: 4px 8px;
+            border: 1px solid #303050;
+            letter-spacing: 1px;
+        }
+
         #pressStartPrompt {
-            font-size: 16px; 
-            color: #FFFF00; 
-            text-shadow: 1px 1px 0px #CCAA00;
-            margin-top: 30px; 
-            animation: blinkPrompt 1.2s infinite;
+            font-size: clamp(11px, 2vw, 14px);
+            color: #FFFF00;
+            letter-spacing: 3px;
+            text-shadow: 0 0 12px #FFD700, 0 0 25px #FF8C00;
+            animation: blinkPrompt 1.1s step-start infinite;
+            margin-bottom: 22px;
         }
         @keyframes blinkPrompt {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+            50%       { opacity: 0; }
         }
-        .controls-text { font-size: 10px; color: #B0B0D0; margin-top: 20px; }
 
-        #gameplayScreen { 
-            width: 100vw; height: 100vh;
+        .title-controls {
+            font-size: 7px;
+            color: #505070;
+            letter-spacing: 1px;
+            line-height: 2;
+        }
+        .title-controls span { color: #8080A0; }
+
+        /* ══════════════════════════════════
+           GAME CANVAS
+        ══════════════════════════════════ */
+        #gameCanvas {
             position: absolute; top: 0; left: 0;
-            z-index: 2; 
+            width: 100%; height: 100%;
+            background: #000;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            display: block; z-index: 1;
         }
-        #gameUiContainer { 
-            width: 90%; max-width: 480px; 
-            position: absolute; top: 10px; left: 50%;
-            transform: translateX(-50%);
-            z-index: 10; pointer-events: none; 
+
+        #gameplayScreen {
+            width: 100vw; height: 100vh;
+            position: absolute; top: 0; left: 0; z-index: 2;
         }
-        #gameUiContainer > * { pointer-events: auto; }
-        
+
+        /* ══════════════════════════════════
+           HUD
+        ══════════════════════════════════ */
+        #gameUiContainer {
+            width: 100%;
+            position: fixed; top: 0; left: 0;
+            z-index: 10; pointer-events: none;
+        }
+
         .top-hud-bar {
-            display: flex; justify-content: space-between; align-items: center; 
-            width: 100%; font-size: 12px; color: #E0E0FF; 
-            background-color: rgba(15, 15, 30, 0.85); 
-            padding: 8px 12px; border: 1px solid #505070;
-            margin-bottom: 5px; box-shadow: 2px 2px 0px #202040;
+            display: flex; justify-content: space-between; align-items: center;
+            width: 100%; padding: 6px 14px;
+            background: rgba(0,0,0,0.88);
+            border-bottom: 1px solid rgba(255,20,147,0.35);
+            font-size: 10px; color: #E0E0FF;
         }
-        
-        .timer-group { display: flex; align-items: center; }
+
+        .hud-lvl { color: #FF69B4; font-size: 11px; }
+        .hud-lvl-name { color: #606080; font-size: 8px; margin-top: 2px; }
+
+        .hud-timer-group { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .hud-time-value { font-size: 14px; color: #FFF; text-align: center; }
         #timerProgressBarContainer {
-            width: 80px; height: 12px; background-color: #333; 
-            border: 1px solid #505070; overflow: hidden; margin-left: 10px; 
+            width: 90px; height: 6px;
+            background: #111; border: 1px solid #333; overflow: hidden;
         }
         #timerProgressBar {
-            width: 100%; height: 100%; background-color: #4CAF50; 
-            transition: width 0.2s linear, background-color 0.5s linear; 
+            height: 100%;
+            background: #2ECC40;
+            transition: width 0.25s linear, background-color 0.5s linear;
         }
-        
-        #messageDisplay {
-            font-size: 10px; text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
-            background-color: rgba(15, 15, 30, 0.85); padding: 6px 8px;
-            border: 1px solid #505070; min-height: 2.5em; 
-            display: flex; align-items: center; justify-content: center;
-            width: 100%; box-shadow: 2px 2px 0px #202040;
-            margin-bottom: 5px;
-        }
+
+        .hud-score { text-align: right; }
+        .hud-cd-count { font-size: 13px; color: #FFFF00; }
+        .hud-cd-label { font-size: 7px; color: #606080; margin-top: 2px; text-align: right; }
 
         #activeEffectsBar {
             display: flex; gap: 5px; flex-wrap: wrap; justify-content: center;
-            min-height: 18px;
+            background: rgba(0,0,0,0.75);
+            border-bottom: 1px solid rgba(255,20,147,0.15);
+            overflow: hidden; max-height: 0;
+            transition: max-height 0.2s ease, padding 0.2s ease;
         }
+        #activeEffectsBar.has-effects { max-height: 36px; padding: 4px 8px; }
         .effect-badge {
-            padding: 3px 6px; font-size: 8px; color: #000; border-radius: 2px;
-            font-weight: bold; text-transform: uppercase; animation: popIn 0.2s ease-out;
+            padding: 3px 7px; font-size: 7px; color: #000;
+            font-weight: bold; text-transform: uppercase;
+            animation: popIn 0.15s ease-out;
         }
-        @keyframes popIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+        @keyframes popIn {
+            from { transform: scale(0.5); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
 
+        /* ══════════════════════════════════
+           MESSAGE TOAST
+        ══════════════════════════════════ */
+        #messageDisplay {
+            position: fixed; bottom: 85px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 15; font-size: 10px;
+            color: #FFFF55;
+            text-shadow: 0 0 8px #FFD700, 1px 1px 0 #000;
+            background: rgba(0,0,0,0.85);
+            padding: 7px 16px;
+            border: 1px solid rgba(255,20,147,0.5);
+            pointer-events: none; white-space: nowrap;
+            opacity: 0; transition: opacity 0.15s ease;
+        }
+        #messageDisplay.visible { opacity: 1; }
+
+        /* ══════════════════════════════════
+           LEVEL TRANSITION
+        ══════════════════════════════════ */
         #levelTransitionOverlay {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: rgba(0,0,0,0.9); z-index: 50;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            color: white; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            position: absolute; inset: 0; z-index: 50;
+            background: rgba(0,0,0,0.95);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.35s ease;
         }
         #levelTransitionOverlay.active { opacity: 1; pointer-events: all; }
-        .level-title { font-size: 32px; color: #FF1493; text-shadow: 3px 3px 0 #FFFF00; margin-bottom: 20px;}
-        .level-subtitle { font-size: 14px; color: #B0B0D0; }
 
-        .pixel-button { 
-            background-color: #4A90E2; color: white; padding: 8px 16px; 
-            border: 2px solid #1E63B0; box-shadow: 2px 2px 0px #1E63B0; 
-            transition: all 0.05s ease-out; cursor: pointer; font-size: 12px; margin: 5px; 
+        .trans-level-num {
+            font-size: clamp(64px, 15vw, 110px);
+            line-height: 1;
+            color: #FF1493;
+            text-shadow: 4px 4px 0 #8B0057, 0 0 40px rgba(255,20,147,0.6);
+            animation: transIn 0.4s ease-out;
         }
-        .pixel-button:hover, .pixel-button:active { 
-            background-color: #357ABD; box-shadow: 1px 1px 0px #1E63B0; transform: translate(1px, 1px); 
+        .trans-level-name {
+            font-size: clamp(14px, 3vw, 22px);
+            color: #FFFF00;
+            text-shadow: 2px 2px 0 #B8860B, 0 0 20px rgba(255,220,0,0.5);
+            margin-top: 8px;
+            animation: transIn 0.4s 0.1s ease-out both;
         }
-        .pixel-button.green { background-color: #50C878; border-color: #2E8B57; box-shadow: 2px 2px 0px #2E8B57; }
-        .pixel-button.green:hover, .pixel-button.green:active { background-color: #3CB371; box-shadow: 1px 1px 0px #2E8B57; }
+        .trans-goal {
+            font-size: 10px; color: #A0A0C0;
+            margin-top: 20px;
+            animation: transIn 0.4s 0.2s ease-out both;
+        }
+        .trans-divider {
+            width: 200px; height: 2px;
+            background: linear-gradient(90deg, transparent, #FF1493, transparent);
+            margin: 14px 0;
+        }
+        @keyframes transIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
 
+        /* ══════════════════════════════════
+           GAME OVER SCREEN
+        ══════════════════════════════════ */
+        #gameOverScreen {
+            position: absolute; inset: 0; z-index: 20;
+            background: rgba(0,0,0,0.97);
+            display: none; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center; padding: 30px 20px;
+        }
+        #gameOverScreen.visible { display: flex; }
+
+        .go-header {
+            font-size: clamp(28px, 6vw, 46px);
+            color: #FF1493;
+            text-shadow: 3px 3px 0 #8B0057, 0 0 30px rgba(255,20,147,0.7);
+            margin-bottom: 6px;
+            animation: transIn 0.4s ease-out;
+        }
+        .go-sub {
+            font-size: 9px; color: #505070;
+            margin-bottom: 28px;
+            animation: transIn 0.4s 0.05s ease-out both;
+        }
+        .go-score-label { font-size: 9px; color: #606080; margin-bottom: 6px; }
+        #finalScoreDisplay {
+            font-size: clamp(42px, 10vw, 64px);
+            color: #FFFF00;
+            text-shadow: 3px 3px 0 #B8860B, 0 0 30px rgba(255,220,0,0.6);
+            margin-bottom: 6px;
+            animation: scoreCount 0.5s ease-out;
+        }
+        @keyframes scoreCount {
+            from { transform: scale(0.6); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+        #gameOverMessage { font-size: 9px; color: #8080A0; margin-bottom: 24px; }
+
+        .go-divider {
+            width: 260px; max-width: 90vw; height: 1px;
+            background: linear-gradient(90deg, transparent, #FF1493, transparent);
+            margin: 16px 0;
+        }
+
+        #initialsForm { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .go-initials-label { font-size: 9px; color: #A0A0C0; }
+        #initialsInput {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 20px; width: 110px; padding: 8px;
+            text-align: center;
+            background: #080810; border: 2px solid #FF1493;
+            color: #FFFF00; text-transform: uppercase;
+            outline: none;
+        }
+        #initialsInput:focus { box-shadow: 0 0 12px rgba(255,20,147,0.5); }
+
+        .pixel-button {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px; padding: 10px 20px;
+            background: #FF1493; color: #000;
+            border: none; cursor: pointer;
+            box-shadow: 3px 3px 0 #8B0057;
+            transition: all 0.05s;
+            text-transform: uppercase;
+        }
+        .pixel-button:hover { background: #FF69B4; }
+        .pixel-button:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 #8B0057; }
+        .pixel-button.secondary {
+            background: #1a1a30; color: #E0E0FF;
+            border: 1px solid #404060;
+            box-shadow: 3px 3px 0 #101020;
+        }
+        .pixel-button.secondary:hover { background: #252540; }
+
+        #scoreboardSection { display: none; flex-direction: column; align-items: center; width: 100%; }
+        #scoreboardSection.visible { display: flex; }
+        #scoreboard {
+            margin: 10px 0; padding: 12px 16px;
+            background: #05050f;
+            border: 1px solid #2a2a4a;
+            width: 100%; max-width: 340px;
+        }
+        #scoreboard h3 { font-size: 10px; color: #FF1493; margin-bottom: 10px; text-align: center; }
+        #scoreboard ol { list-style-type: none; padding: 0; }
+        #scoreboard li { font-size: 9px; color: #C0C0E0; padding: 4px 0; border-bottom: 1px solid #1a1a2a; display: flex; justify-content: space-between; }
+        #scoreboard li:last-child { border-bottom: none; }
+        #scoreboard li .score-value { color: #FFFF00; }
+
+        /* ══════════════════════════════════
+           MOBILE CONTROLS
+        ══════════════════════════════════ */
         #onScreenControls {
-            width: 100%; position: fixed; bottom: 0; left: 0; z-index: 10; 
-            padding: 10px; box-sizing: border-box; display: none; 
-            justify-content: space-between; align-items: flex-end; pointer-events: none; 
+            width: 100%; position: fixed; bottom: 0; left: 0;
+            z-index: 10; padding: 10px; display: none;
+            justify-content: space-between; align-items: flex-end;
+            pointer-events: none;
         }
-        .control-cluster { display: flex; gap: 10px; pointer-events: auto; background-color: rgba(10,10,20,0.6); padding: 8px; border-radius: 5px; }
+        .control-cluster {
+            display: flex; gap: 8px; pointer-events: auto;
+            background: rgba(0,0,0,0.5); padding: 8px; border-radius: 4px;
+        }
         #leftControls { flex-direction: column; }
         #rightControls { flex-direction: row; }
-        .control-button { 
-            width: 55px; height: 55px; background-color: #303050; border: 2px solid #7070A0; 
-            box-shadow: 0px 2px 0px #181828; color: #E0E0FF; font-size: 24px; 
+        .control-button {
+            width: 56px; height: 56px;
+            background: rgba(255,20,147,0.15);
+            border: 1px solid rgba(255,20,147,0.4);
+            color: #FF69B4; font-size: 20px;
             display: flex; align-items: center; justify-content: center;
-            user-select: none; touch-action: manipulation; border-radius: 4px; 
+            user-select: none; touch-action: manipulation;
+            border-radius: 4px; cursor: pointer;
         }
-        .control-button.active, .control-button:active { 
-            background-color: #505070; box-shadow: inset 0px 1px 2px #181828; transform: translateY(1px);
+        .control-button.active {
+            background: rgba(255,20,147,0.35);
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.5);
         }
 
-        #initialsForm { margin-top: 15px; }
-        #initialsInput {
-            font-family: 'Press Start 2P', 'Courier New', monospace; font-size: 18px;
-            width: 100px; padding: 5px; text-align: center; background-color: #101020;
-            border: 2px solid #606090; color: #FFFF00; text-transform: uppercase; margin-bottom: 10px;
-        }
-        #scoreboard {
-            margin-top: 12px; padding: 8px; background-color: rgba(0,0,0,0.5);
-            border: 1px solid #404060; width: 100%; max-width: 360px;
-        }
-        #scoreboard h3 { font-size: 14px; margin-bottom: 8px; color: #FFD700; }
-        #scoreboard ol { list-style-type: decimal; padding-left: 18px; text-align: left; } 
-        #scoreboard li { font-size: 10px; margin-bottom: 4px; color: #E0E0FF; } 
-        #scoreboard li .score-value { color: #FFFF00; float: right; }
-
-        @media (max-width: 768px) { 
-            .controls-text { display: none; }
-            #titleScreen { padding: 15px; max-width: 95%; } 
-            #logoCanvas { width: 90%; height: auto; aspect-ratio: 450 / 180; margin-bottom: 20px;} 
-            #pressStartPrompt { font-size: 14px; margin-top: 25px;}
-            .top-hud-bar { font-size: 10px; padding: 6px 8px; }
-            #timerProgressBarContainer { width: 60px; height: 10px; }
-            #messageDisplay { font-size: 9px; }
-            .pixel-button { font-size: 10px; padding: 6px 12px; }
-            .level-title { font-size: 24px; }
+        @media (max-width: 600px) {
+            .title-controls { display: none; }
+            .top-hud-bar { font-size: 9px; padding: 5px 10px; }
+            #timerProgressBarContainer { width: 60px; }
         }
     </style>
 </head>
-<body class="select-none">
-    <!-- Title Screen -->
+<body>
+    <!-- Audio -->
+    <audio id="menuMusic"          loop src="menu_music.mp3"></audio>
+    <audio id="gameplayMusic"      loop src="millo_theme.mp3"></audio>
+    <audio id="endMenuMusic"       loop src="end-menu-music.mp3"></audio>
+    <audio id="cdPickupSound"           src="cd.mp3"></audio>
+    <audio id="goldenCdPickupSound"     src="golden-cd.mp3"></audio>
+    <audio id="timeFreezeSound"         src="time_freeze.mp3"></audio>
+    <audio id="pathfinderSound"         src="pathfinder.mp3"></audio>
+    <audio id="cursedIdolSound"         src="cursed_idol.mp3"></audio>
+    <audio id="gooPuddleSound"          src="goo_puddle.mp3"></audio>
+
+    <!-- CRT overlay — sits on top of everything -->
+    <div id="crtOverlay"></div>
+
     <div id="gameContainer">
-        <div id="titleScreen" class="screen-panel"> 
-            <canvas id="logoCanvas"></canvas>
-            <p id="pressStartPrompt">PRESS ENTER TO START</p>
-            <p class="controls-text"><strong class="text-yellow-300">Controls:</strong> Arrows, W/A/S/D, Q/E to Strafe</p>
+
+        <!-- ── TITLE SCREEN ── -->
+        <div id="titleScreen">
+            <div class="title-inner">
+                <div class="title-presented-by">MILLO &nbsp;•&nbsp; ARCADE EDITION</div>
+                <div class="title-hit">HIT THE</div>
+                <div class="title-the-wall">WALL</div>
+                <div class="title-divider"></div>
+                <div class="title-levels">
+                    <div class="title-level-chip">1 · THE PINK MALL</div>
+                    <div class="title-level-chip">2 · NEON ARCADE</div>
+                    <div class="title-level-chip">3 · TOXIC BASEMENT</div>
+                </div>
+                <div id="pressStartPrompt">▶ &nbsp; PRESS ENTER &nbsp; ◀</div>
+                <div class="title-controls">
+                    <span>W A S D</span> or <span>ARROWS</span> — move &nbsp;|&nbsp;
+                    <span>Q / E</span> — strafe
+                </div>
+            </div>
         </div>
 
-        <!-- Level Transition Overlay -->
+        <!-- ── LEVEL TRANSITION ── -->
         <div id="levelTransitionOverlay">
-            <h1 id="transitionTitle" class="level-title">LEVEL 1</h1>
-            <p id="transitionSubtitle" class="level-subtitle">The Pink Mall</p>
-            <p id="transitionGoal" class="text-yellow-300 mt-4 text-xs">Collect 5 CDs</p>
+            <div id="transitionTitle"    class="trans-level-num">LEVEL 1</div>
+            <div class="trans-divider"></div>
+            <div id="transitionSubtitle" class="trans-level-name">The Pink Mall</div>
+            <div id="transitionGoal"     class="trans-goal">Collect 5 CDs</div>
         </div>
 
-        <!-- Gameplay Screen -->
-        <div id="gameplayScreen" class="hidden"> 
-            <canvas id="gameCanvas"></canvas> 
+        <!-- ── GAMEPLAY ── -->
+        <div id="gameplayScreen" class="hidden">
+            <canvas id="gameCanvas"></canvas>
             <div id="gameUiContainer">
-                <div class="top-hud-bar"> 
-                    <div id="levelDisplay" class="text-pink-400 font-bold">LVL: 1</div>
-                    <div class="timer-group">
-                        <span id="timerDisplay">30s</span>
+                <div class="top-hud-bar">
+                    <div>
+                        <div class="hud-lvl" id="levelDisplay">LVL 1</div>
+                        <div class="hud-lvl-name" id="levelNameDisplay">THE PINK MALL</div>
+                    </div>
+                    <div class="hud-timer-group">
+                        <div class="hud-time-value" id="timerDisplay">30s</div>
                         <div id="timerProgressBarContainer"><div id="timerProgressBar"></div></div>
                     </div>
-                    <div id="scoreDisplay" class="text-yellow-300">CDs: 0/5</div>
+                    <div class="hud-score">
+                        <div class="hud-cd-count" id="scoreDisplay">0 / 5</div>
+                        <div class="hud-cd-label">CDs FOUND</div>
+                    </div>
                 </div>
-                <p id="messageDisplay">Find the CDs!</p>
                 <div id="activeEffectsBar"></div>
             </div>
         </div>
-        
-        <!-- Game Over / Score Screen -->
-        <div id="gameOverScreen" class="hidden screen-panel p-5">
-            <h2 class="title-text-small" style="font-size: 24px; margin-bottom: 8px;">Game Over!</h2> 
-            
-            <div id="scoreSection" class="mt-4">
-                <p style="font-size:10px;">Total Score:</p>
-                <div id="finalScoreDisplay" style="font-size: 36px; margin: 10px 0; text-shadow: 3px 3px 0 #FF1493;">0</div>
-                <p id="gameOverMessage" class="text-gray-400 mt-2" style="font-size:10px;"></p>
-            </div>
-            
-            <!-- Firebase Submit -->
-            <div id="initialsForm" class="hidden flex flex-col items-center">
-                <p style="font-size:12px; margin-top:15px; margin-bottom:8px;">Enter Initials:</p>
-                <input type="text" id="initialsInput" maxlength="3">
-                <button id="submitScoreButton" class="pixel-button green">Save Score</button>
+
+        <!-- ── MESSAGE TOAST ── -->
+        <div id="messageDisplay"></div>
+
+        <!-- ── GAME OVER ── -->
+        <div id="gameOverScreen">
+            <div class="go-header">GAME OVER</div>
+            <div class="go-sub" id="gameOverMessage">You reached Level 1</div>
+            <div class="go-score-label">FINAL SCORE</div>
+            <div id="finalScoreDisplay">0</div>
+            <div class="go-divider"></div>
+
+            <div id="initialsForm">
+                <div class="go-initials-label">ENTER YOUR INITIALS</div>
+                <input type="text" id="initialsInput" maxlength="3" placeholder="AAA">
+                <button id="submitScoreButton" class="pixel-button">SAVE SCORE</button>
             </div>
 
-            <!-- Firebase Scoreboard -->
-            <div id="scoreboardSection" class="hidden flex flex-col items-center w-full">
+            <div id="scoreboardSection">
                 <div id="scoreboard">
-                    <h3>Top Scores:</h3>
+                    <h3>◆ TOP SCORES ◆</h3>
                     <ol id="scoreboardList"></ol>
                 </div>
-                <button id="restartButton" class="mt-4 pixel-button green">Play Again?</button>
+                <div style="margin-top:16px; display:flex; gap:10px;">
+                    <button id="restartButton" class="pixel-button">PLAY AGAIN</button>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Mobile Controls -->
     <div id="onScreenControls">
-        <div id="leftControls" class="control-cluster">
-            <button id="arrowUp" class="control-button">▲</button>
+        <div id="leftControls"  class="control-cluster">
+            <button id="arrowUp"   class="control-button">▲</button>
             <button id="arrowDown" class="control-button">▼</button>
         </div>
         <div id="rightControls" class="control-cluster">
-            <button id="arrowLeft" class="control-button">◀</button>
+            <button id="arrowLeft"  class="control-button">◀</button>
             <button id="arrowRight" class="control-button">▶</button>
         </div>
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { initializeApp }    from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp }
+            from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- Firebase Config and Instances ---
-        // IMPORTANT: PASTE YOUR ACTUAL FIREBASE CONFIG OBJECT HERE!
-        const firebaseConfig = null; // <-- PASTE YOUR CONFIG HERE, REPLACING NULL
-
-        const appId = 'millo-hit-the-wall'; 
+        const firebaseConfig = null; // <-- PASTE YOUR CONFIG HERE
+        const appId = 'millo-hit-the-wall';
+        const SCORES_COLLECTION = 'hit_the_wall_arcade_deluxe';
         let db, auth;
-        const SCORES_COLLECTION_NAME = 'hit_the_wall_arcade_deluxe'; 
-
         if (firebaseConfig) {
             try {
                 const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-            } catch (e) { console.error("Firebase Init Error:", e); db = null; auth = null; }
+                db = getFirestore(app); auth = getAuth(app);
+            } catch(e) { console.error("Firebase:", e); }
         }
 
-        // --- DOM Elements ---
+        // ── DOM ──
         const ui = {
-            titleScreen: document.getElementById('titleScreen'),
-            gameplayScreen: document.getElementById('gameplayScreen'),
-            gameOverScreen: document.getElementById('gameOverScreen'),
-            levelTransitionOverlay: document.getElementById('levelTransitionOverlay'),
-            transitionTitle: document.getElementById('transitionTitle'),
-            transitionSubtitle: document.getElementById('transitionSubtitle'),
-            transitionGoal: document.getElementById('transitionGoal'),
-            mainCanvas: document.getElementById('gameCanvas'),
-            messageDisplay: document.getElementById('messageDisplay'),
-            timerDisplay: document.getElementById('timerDisplay'),
-            timerProgressBar: document.getElementById('timerProgressBar'),
-            scoreDisplay: document.getElementById('scoreDisplay'),
-            levelDisplay: document.getElementById('levelDisplay'),
-            finalScoreDisplay: document.getElementById('finalScoreDisplay'),
-            gameOverMessage: document.getElementById('gameOverMessage'),
-            logoCanvas: document.getElementById('logoCanvas'),
-            activeEffectsBar: document.getElementById('activeEffectsBar'),
-            initialsForm: document.getElementById('initialsForm'),
-            initialsInput: document.getElementById('initialsInput'),
-            submitScoreButton: document.getElementById('submitScoreButton'),
-            scoreboardSection: document.getElementById('scoreboardSection'),
-            scoreboardList: document.getElementById('scoreboardList'),
-            restartButton: document.getElementById('restartButton'),
-            onScreenControls: document.getElementById('onScreenControls')
+            titleScreen:           document.getElementById('titleScreen'),
+            gameplayScreen:        document.getElementById('gameplayScreen'),
+            gameOverScreen:        document.getElementById('gameOverScreen'),
+            levelTransitionOverlay:document.getElementById('levelTransitionOverlay'),
+            transitionTitle:       document.getElementById('transitionTitle'),
+            transitionSubtitle:    document.getElementById('transitionSubtitle'),
+            transitionGoal:        document.getElementById('transitionGoal'),
+            mainCanvas:            document.getElementById('gameCanvas'),
+            messageDisplay:        document.getElementById('messageDisplay'),
+            timerDisplay:          document.getElementById('timerDisplay'),
+            timerProgressBar:      document.getElementById('timerProgressBar'),
+            scoreDisplay:          document.getElementById('scoreDisplay'),
+            levelDisplay:          document.getElementById('levelDisplay'),
+            levelNameDisplay:      document.getElementById('levelNameDisplay'),
+            finalScoreDisplay:     document.getElementById('finalScoreDisplay'),
+            gameOverMessage:       document.getElementById('gameOverMessage'),
+            activeEffectsBar:      document.getElementById('activeEffectsBar'),
+            initialsForm:          document.getElementById('initialsForm'),
+            initialsInput:         document.getElementById('initialsInput'),
+            submitScoreButton:     document.getElementById('submitScoreButton'),
+            scoreboardSection:     document.getElementById('scoreboardSection'),
+            scoreboardList:        document.getElementById('scoreboardList'),
+            restartButton:         document.getElementById('restartButton'),
+            onScreenControls:      document.getElementById('onScreenControls'),
         };
 
-        // --- Rendering Core ---
-        const offscreenCanvas = document.createElement('canvas'); 
-        const offscreenCtx = offscreenCanvas.getContext('2d');
-        const RENDER_WIDTH = 160, RENDER_HEIGHT = 120; 
-        const TILE_SIZE = 64, FOV = Math.PI / 2.2, NUM_RAYS = RENDER_WIDTH;
-        const distToWallBuffer = new Array(NUM_RAYS).fill(0);
-
-        // --- Level Data ---
-        const LEVEL_DESIGNS = [
-            {
-                name: "The Pink Mall",
-                targetCDs: 5,
-                colors: { w1: '#FF69B4', w2: '#DB7093', f1: '#2E8B57', f2: '#228B22', c1: '#191970', c2: '#000033' },
-                map: [
-                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,1,0,0,0,1,0,0,0,0,1],[1,0,1,0,1,0,1,0,1,1,0,1,0,1],
-                    [1,0,1,0,0,0,1,0,0,0,0,1,0,1],[1,0,1,1,1,1,1,1,1,0,1,1,0,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,1],
-                    [1,1,1,0,1,1,0,0,1,1,0,1,1,1],[1,0,0,0,1,0,0,0,0,0,0,0,0,1],[1,0,1,1,1,0,1,1,1,1,0,1,0,1],
-                    [1,0,0,0,0,0,0,1,0,0,0,1,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-                ]
-            },
-            {
-                name: "The Neon Arcade",
-                targetCDs: 8,
-                colors: { w1: '#00CED1', w2: '#008B8B', f1: '#4B0082', f2: '#2A0845', c1: '#000000', c2: '#1A1A1A' },
-                map: [
-                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,1,0,0,0,0,0,0,1],[1,0,1,1,1,0,1,0,1,1,1,1,0,1],
-                    [1,0,1,0,0,0,0,0,0,0,0,1,0,1],[1,0,1,0,1,1,1,1,1,1,0,1,0,1],[1,0,0,0,1,0,0,0,0,1,0,0,0,1],
-                    [1,1,1,0,1,0,1,1,0,1,0,1,1,1],[1,0,0,0,0,0,1,1,0,0,0,0,0,1],[1,0,1,1,1,1,1,1,1,1,1,1,0,1],
-                    [1,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-                ]
-            },
-            {
-                name: "The Toxic Basement",
-                targetCDs: 12,
-                colors: { w1: '#556B2F', w2: '#2F4F4F', f1: '#111111', f2: '#222222', c1: '#003300', c2: '#001100' },
-                map: [
-                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,0,1,1,0,0,1,1,0,0,1,1,0,1],
-                    [1,0,1,1,0,0,1,1,0,0,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,0,0,1,1,0,0,0,0,0,1],
-                    [1,0,0,0,0,0,1,1,0,0,0,0,0,1],[1,0,1,1,0,0,0,0,0,0,1,1,0,1],[1,0,1,1,0,0,1,1,0,0,1,1,0,1],
-                    [1,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-                ]
-            }
-        ];
-
-        // --- Game State ---
-        let currentLevelIndex = 0;
-        let loopMultiplier = 1;
-        let mapData = [], MAP_WIDTH, MAP_HEIGHT;
-        let player = { x: 0, y: 0, angle: 0 };
-        const ORIGINAL_MOVE_SPEED = TILE_SIZE / 9; 
-        const TURN_SPEED = 0.06;
-        let walkCycle = 0;
-        let grabTimer = 0;
-        
-        let globalScore = 0; 
-        let cdsCollectedThisLevel = 0;
-        let timeLeft = 30;
-        const INITIAL_TIME = 30;
-        
-        let gameRunning = false, gameTimerInterval = null, animationFrameId = null;
-        let textures = {};
-        let particles = []; 
-        let powerups = [];
-        let hazards = [];
-
-        // Powerup System
-        const effects = {
-            freeze: { active: false, timerId: null, duration: 6000, name: "TIME FROZEN", color: "#ADD8E6" },
-            pathfinder: { active: false, timerId: null, duration: 10000, name: "BEACON", color: "#FFD700" },
-            xray: { active: false, timerId: null, duration: 8000, name: "X-RAY VISION", color: "#40E0D0" },
-            curse: { active: false, timerId: null, duration: 7000, name: "CURSED", color: "#8A2BE2" },
-            goo: { active: false, timerId: null, duration: 4000, name: "GOO SLOWDOWN", color: "#556B2F" }
+        const audio = {
+            menu:     document.getElementById('menuMusic'),
+            gameplay: document.getElementById('gameplayMusic'),
+            end:      document.getElementById('endMenuMusic'),
+            cd:       document.getElementById('cdPickupSound'),
+            goldenCd: document.getElementById('goldenCdPickupSound'),
+            freeze:   document.getElementById('timeFreezeSound'),
+            pathfinder:document.getElementById('pathfinderSound'),
+            curse:    document.getElementById('cursedIdolSound'),
+            goo:      document.getElementById('gooPuddleSound'),
         };
 
-        // --- Texture Generation ---
-        function createTexture(c1, c2, isChk = false, isW = false) { 
-            const cvs = document.createElement('canvas'); cvs.width=TILE_SIZE; cvs.height=TILE_SIZE; const ctx=cvs.getContext('2d');
-            if(isChk){const cs=TILE_SIZE/(isW?4:2);for(let y=0;y<(isW?4:2);y++)for(let x=0;x<(isW?4:2);x++){ctx.fillStyle=(x+y)%2===0?c1:c2;ctx.fillRect(x*cs,y*cs,cs,cs);}
-                if(!isW){for(let i=0;i<30;i++){ctx.fillStyle=Math.random()<0.5?c1:c2;ctx.globalAlpha=0.25;ctx.fillRect(Math.random()*TILE_SIZE,Math.random()*TILE_SIZE,1,Math.random()*3+1);}ctx.globalAlpha=1;}}
-            else{ctx.fillStyle=c1;ctx.fillRect(0,0,TILE_SIZE,TILE_SIZE);for(let i=0;i<TILE_SIZE*TILE_SIZE/6;i++){ctx.fillStyle=c2;ctx.globalAlpha=Math.random()*0.5+0.2;ctx.fillRect(Math.random()*TILE_SIZE,Math.random()*TILE_SIZE,1,1);}ctx.globalAlpha=1;}
-            if(isW){ctx.strokeStyle='rgba(0,0,0,0.3)';ctx.lineWidth=2;for(let i=0;i<=TILE_SIZE;i+=TILE_SIZE/2){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,TILE_SIZE);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(TILE_SIZE,i);ctx.stroke();}}
-            return cvs;
+        function playMusic(t) {
+            [audio.menu, audio.gameplay, audio.end].forEach(a => a?.pause());
+            t?.play().catch(()=>{});
         }
-        function createNightSkyTexture(c1,c2){ 
-            const cvs=document.createElement('canvas');cvs.width=TILE_SIZE*2;cvs.height=TILE_SIZE;const ctx=cvs.getContext('2d');
-            const gr=ctx.createLinearGradient(0,0,0,TILE_SIZE);gr.addColorStop(0,c2);gr.addColorStop(0.7,c1);gr.addColorStop(1,c1);ctx.fillStyle=gr;ctx.fillRect(0,0,cvs.width,cvs.height);
-            for(let i=0;i<100;i++){const x=Math.random()*cvs.width,y=Math.random()*cvs.height*0.8,s=Math.random()*1.2+0.3;ctx.fillStyle=`rgba(255,255,${Math.floor(Math.random()*55+200)},${Math.random()*0.6+0.4})`;ctx.beginPath();ctx.arc(x,y,s,0,Math.PI*2);ctx.fill();}
-            return cvs;
-        }
-        function createReflectiveCDSpriteEnhanced(golden = false){ 
-            const cvs=document.createElement('canvas');cvs.width=TILE_SIZE;cvs.height=TILE_SIZE;const ctx=cvs.getContext('2d');
-            const cX=TILE_SIZE/2,cY=TILE_SIZE/2,oR=TILE_SIZE*0.45,iR=TILE_SIZE*0.1;
-            const gr=ctx.createRadialGradient(cX,cY,iR,cX,cY,oR);
-            if(golden) { gr.addColorStop(0,'#FFFFE0');gr.addColorStop(0.5,'#FFD700');gr.addColorStop(1,'#FFA500'); }
-            else { gr.addColorStop(0,'#DDDDFF');gr.addColorStop(0.6,'#A0A0CC');gr.addColorStop(1,'#C0C0EE'); }
-            ctx.fillStyle=gr;ctx.beginPath();ctx.arc(cX,cY,oR,0,Math.PI*2);ctx.fill();
-            if(!golden) {
-                const sC=['rgba(255,0,0,0.2)','rgba(255,165,0,0.2)','rgba(255,255,0,0.2)','rgba(0,128,0,0.2)','rgba(0,0,255,0.2)','rgba(75,0,130,0.2)','rgba(238,130,238,0.2)'];
-                for(let i=0;i<7;i++){ctx.beginPath();const aO=(i/7)*Math.PI*0.3,sA=Math.PI*(0.2+i*0.2)+aO,eA=sA+Math.PI*0.3,r=oR*(0.6+Math.random()*0.3);ctx.arc(cX,cY,r,sA,eA);ctx.strokeStyle=sC[i%sC.length];ctx.lineWidth=TILE_SIZE*0.05*(Math.random()*0.5+0.5);ctx.stroke();}
-            } else {
-                for(let i=0;i<12;i++){ctx.beginPath();const a=(i/12)*Math.PI*2;ctx.moveTo(cX+Math.cos(a)*iR,cY+Math.sin(a)*iR);ctx.lineTo(cX+Math.cos(a+0.1)*oR*0.95,cY+Math.sin(a+0.1)*oR*0.95);ctx.strokeStyle=`rgba(255,255,180,${0.2+Math.random()*0.3})`;ctx.lineWidth=TILE_SIZE*0.02;ctx.stroke();}
-            }
-            ctx.fillStyle= golden ? '#4A2C00' : '#202030';ctx.beginPath();ctx.arc(cX,cY,iR,0,Math.PI*2);ctx.fill();
-            ctx.strokeStyle= golden ? '#DAA520' : '#101015';ctx.lineWidth=1;ctx.stroke();
-            if(golden) { for(let i=0; i<5; i++){ ctx.fillStyle = `rgba(255,255,224,${0.5 + Math.random()*0.5})`; const sX = cX + (Math.random()-0.5)*oR*1.5; const sY = cY + (Math.random()-0.5)*oR*1.5; const sS = TILE_SIZE * (0.02 + Math.random()*0.03); ctx.fillRect(sX-sS/2, sY-sS/2, sS,sS);}}
-            else { ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.lineWidth=TILE_SIZE*0.015;ctx.beginPath();ctx.arc(cX,cY,oR,0,Math.PI*2);ctx.stroke(); }
-            return cvs;
-        }
-        function createHandSprite(isRight) {
-            const cvs = document.createElement('canvas'); cvs.width = 24; cvs.height = 32; const ctx = cvs.getContext('2d');
-            ctx.fillStyle = '#F5CBA7'; ctx.strokeStyle = '#D35400'; ctx.lineWidth = 2;
-            ctx.fillRect(4, 8, 16, 24); ctx.strokeRect(4, 8, 16, 24); // Palm/Fingers
-            if(isRight) { ctx.fillRect(2, 12, 6, 12); ctx.strokeRect(2, 12, 6, 12); } // Thumb left
-            else { ctx.fillRect(16, 12, 6, 12); ctx.strokeRect(16, 12, 6, 12); } // Thumb right
-            return cvs;
-        }
-        function generateSprites() {
-            textures.cd = createReflectiveCDSpriteEnhanced(false);
-            textures.goldenCd = createReflectiveCDSpriteEnhanced(true);
-            textures.handLeft = createHandSprite(false);
-            textures.handRight = createHandSprite(true);
-            
-            // X-Ray
-            const xr=document.createElement('canvas'); xr.width=TILE_SIZE; xr.height=TILE_SIZE; const xCtx=xr.getContext('2d');
-            xCtx.strokeStyle='#40E0D0'; xCtx.lineWidth=3; xCtx.beginPath();xCtx.arc(20,32,12,0,Math.PI*2);xCtx.stroke(); xCtx.beginPath();xCtx.arc(44,32,12,0,Math.PI*2);xCtx.stroke();
-            xCtx.beginPath();xCtx.moveTo(32,32);xCtx.lineTo(32,32);xCtx.stroke(); xCtx.fillStyle='rgba(173,216,230,0.5)'; xCtx.beginPath();xCtx.arc(20,32,10,0,Math.PI*2);xCtx.fill(); xCtx.beginPath();xCtx.arc(44,32,10,0,Math.PI*2);xCtx.fill();
-            textures.xray = xr;
-
-            // Freeze
-            const fr=document.createElement('canvas'); fr.width=TILE_SIZE; fr.height=TILE_SIZE; const fCtx=fr.getContext('2d');
-            fCtx.fillStyle = '#ADD8E6'; fCtx.beginPath(); fCtx.arc(32, 32, 22, 0, Math.PI*2); fCtx.fill();
-            fCtx.strokeStyle = '#87CEEB'; fCtx.lineWidth = 3; fCtx.stroke();
-            fCtx.fillStyle = '#FFF'; fCtx.fillRect(30, 16, 4, 18); fCtx.fillRect(20, 30, 16, 4);
-            textures.freeze = fr;
-
-            // Pathfinder
-            const pf=document.createElement('canvas'); pf.width=TILE_SIZE; pf.height=TILE_SIZE; const pCtx=pf.getContext('2d');
-            pCtx.fillStyle = '#FFD700'; pCtx.beginPath(); pCtx.moveTo(32, 10); pCtx.lineTo(42, 22); pCtx.lineTo(36, 22); pCtx.lineTo(36, 54); pCtx.lineTo(28, 54); pCtx.lineTo(28, 22); pCtx.lineTo(22, 22); pCtx.closePath(); pCtx.fill();
-            pCtx.strokeStyle = '#B8860B'; pCtx.lineWidth=2; pCtx.stroke();
-            textures.pathfinder = pf;
-
-            // Cursed Idol
-            const id=document.createElement('canvas'); id.width=TILE_SIZE; id.height=TILE_SIZE; const iCtx=id.getContext('2d');
-            iCtx.fillStyle = '#4B0082'; iCtx.beginPath(); iCtx.moveTo(32, 12); iCtx.lineTo(45, 52); iCtx.lineTo(19, 52); iCtx.closePath(); iCtx.fill();
-            iCtx.fillStyle = '#8A2BE2'; iCtx.beginPath(); iCtx.arc(32, 20, 4, 0, Math.PI*2); iCtx.fill();
-            textures.curse = id;
-
-            // Goo
-            const go=document.createElement('canvas'); go.width=TILE_SIZE; go.height=TILE_SIZE; const gCtx=go.getContext('2d');
-            gCtx.fillStyle='#556B2F'; gCtx.beginPath(); gCtx.ellipse(32, 45, 25, 12, 0, 0, Math.PI*2); gCtx.fill();
-            textures.goo = go;
+        function playSound(t) {
+            if (!t) return;
+            t.currentTime = 0;
+            t.play().catch(()=>{});
         }
 
-        function loadLevelGraphics(levelIndex) {
-            const lData = LEVEL_DESIGNS[levelIndex % LEVEL_DESIGNS.length];
-            textures.wall = createTexture(lData.colors.w1, lData.colors.w2, false, true);
-            textures.floor = createTexture(lData.colors.f1, lData.colors.f2, true);
-            textures.ceiling = createNightSkyTexture(lData.colors.c1, lData.colors.c2);
+        // ── RENDERER ──
+        const RENDER_W = 160, RENDER_H = 120;
+        const offscreen = document.createElement('canvas');
+        offscreen.width = RENDER_W; offscreen.height = RENDER_H;
+        const oCtx = offscreen.getContext('2d');
+
+        const TILE = 64, FOV = Math.PI / 2.2, RAYS = RENDER_W;
+        const wallDist = new Float32Array(RAYS);
+        let mainCtx = null;
+
+        function resizeCanvas() {
+            ui.mainCanvas.width  = ui.gameplayScreen.clientWidth;
+            ui.mainCanvas.height = ui.gameplayScreen.clientHeight;
+            mainCtx = ui.mainCanvas.getContext('2d');
+            mainCtx.imageSmoothingEnabled = false;
         }
 
-        function drawLogo() {
-            const ctx = ui.logoCanvas.getContext('2d');
-            ctx.imageSmoothingEnabled = false; ctx.clearRect(0,0,400,180);
-            
-            // Draw a mini raycast bg
-            loadLevelGraphics(0); generateSprites();
-            const temp = document.createElement('canvas'); temp.width = 160; temp.height = 72; const tCtx = temp.getContext('2d');
-            tCtx.drawImage(textures.ceiling,0,0,160,36); tCtx.drawImage(textures.floor,0,36,160,36);
-            ctx.drawImage(temp, 0, 0, 400, 180);
+        // ── PROCEDURAL MAZE (recursive DFS backtracking) ──
+        function generateMaze(cols, rows) {
+            // cols and rows must be odd
+            const grid = Array.from({length: rows}, () => new Array(cols).fill(1));
 
-            ctx.textAlign = "center"; ctx.textBaseline = "middle"; 
-            ctx.font = "24px 'Press Start 2P'"; ctx.fillStyle = "#800080"; ctx.fillText("Millo's", 202, 62); ctx.fillStyle = "#FFF0F5"; ctx.fillText("Millo's", 200, 60);
-            ctx.font = "34px 'Press Start 2P'"; ctx.fillStyle = "#FF1493"; ctx.fillText("Hit the Wall", 203, 113); ctx.fillStyle = "#FFFF00"; ctx.fillText("Hit the Wall", 200, 110);
-        }
-
-        // --- Core Systems ---
-        function findEmptyTiles(){ 
-            const e=[];
-            for(let y=0;y<MAP_HEIGHT;y++){
-                for(let x=0;x<MAP_WIDTH;x++){
-                    if(mapData[y][x]===0 && Math.hypot((x+0.5)*TILE_SIZE-player.x,(y+0.5)*TILE_SIZE-player.y)>TILE_SIZE*2) {
-                        e.push({x,y});
+            const carve = (x, y) => {
+                grid[y][x] = 0;
+                const dirs = [[0,-2],[0,2],[-2,0],[2,0]].sort(() => Math.random() - 0.5);
+                for (const [dx, dy] of dirs) {
+                    const nx = x+dx, ny = y+dy;
+                    if (nx>0 && nx<cols-1 && ny>0 && ny<rows-1 && grid[ny][nx]===1) {
+                        grid[y+dy/2][x+dx/2] = 0;
+                        carve(nx, ny);
                     }
                 }
+            };
+            carve(1, 1);
+
+            // Extra loop openings for less linear play
+            const loops = Math.floor(cols * rows * 0.08);
+            for (let i = 0; i < loops; i++) {
+                const x = 1 + Math.floor(Math.random() * (cols-2));
+                const y = 1 + Math.floor(Math.random() * (rows-2));
+                if (grid[y][x] === 1) {
+                    const hOk = grid[y-1]?.[x]===0 && grid[y+1]?.[x]===0;
+                    const vOk = grid[y][x-1]===0 && grid[y][x+1]===0;
+                    if (hOk || vOk) grid[y][x] = 0;
+                }
             }
+            return grid;
+        }
+
+        // ── LEVEL DESIGNS ──
+        const LEVELS = [
+            { name:"The Pink Mall",      targetCDs:5,
+              colors:{w1:'#FF69B4',w2:'#C2185B',f1:'#1B5E20',f2:'#2E7D32',c1:'#1A0030',c2:'#000010'},
+              fog:{r:22,g:0,b:18} },
+            { name:"The Neon Arcade",    targetCDs:8,
+              colors:{w1:'#00E5FF',w2:'#0077AA',f1:'#2A0060',f2:'#1A0040',c1:'#000010',c2:'#00001A'},
+              fog:{r:0,g:5,b:28} },
+            { name:"The Toxic Basement", targetCDs:12,
+              colors:{w1:'#76FF03',w2:'#33691E',f1:'#0A0A0A',f2:'#141E00',c1:'#001800',c2:'#000800'},
+              fog:{r:0,g:20,b:0} },
+        ];
+
+        // ── GAME STATE ──
+        let lvlIndex = 0, loopMult = 1;
+        let mapData = [], MAP_W, MAP_H;
+        let player = {x:0, y:0, angle:0};
+        const MOVE_SPEED = TILE / 9, TURN_SPEED = 0.06;
+        let score = 0, cdsThisLevel = 0, timeLeft = 30;
+        const INIT_TIME = 30;
+        let gameRunning = false, timerInterval = null, rafId = null;
+        let textures = {}, particles = [], powerups = [], hazards = [];
+
+        const FX = {
+            freeze:     {active:false,id:null,dur:6000, name:"TIME FROZEN",  col:"#ADD8E6"},
+            pathfinder: {active:false,id:null,dur:10000,name:"BEACON",       col:"#FFD700"},
+            xray:       {active:false,id:null,dur:8000, name:"X-RAY",        col:"#40E0D0"},
+            curse:      {active:false,id:null,dur:7000, name:"CURSED",       col:"#9B30FF"},
+            goo:        {active:false,id:null,dur:4000, name:"GOO SLOW",     col:"#7B9F35"},
+        };
+
+        // ── TEXTURE GENERATION ──
+        function mkTex(c1,c2,chk=false,wall=false) {
+            const cv=document.createElement('canvas'); cv.width=cv.height=TILE;
+            const cx=cv.getContext('2d');
+            if(chk){
+                const cs=TILE/(wall?4:2);
+                for(let y=0;y<(wall?4:2);y++) for(let x=0;x<(wall?4:2);x++){
+                    cx.fillStyle=(x+y)%2===0?c1:c2; cx.fillRect(x*cs,y*cs,cs,cs);
+                }
+            } else {
+                cx.fillStyle=c1; cx.fillRect(0,0,TILE,TILE);
+                for(let i=0;i<TILE*TILE/6;i++){
+                    cx.fillStyle=c2; cx.globalAlpha=Math.random()*0.5+0.2;
+                    cx.fillRect(Math.random()*TILE,Math.random()*TILE,1,1);
+                }
+                cx.globalAlpha=1;
+            }
+            if(wall){
+                cx.strokeStyle='rgba(0,0,0,0.35)'; cx.lineWidth=2;
+                for(let i=0;i<=TILE;i+=TILE/2){
+                    cx.beginPath();cx.moveTo(i,0);cx.lineTo(i,TILE);cx.stroke();
+                    cx.beginPath();cx.moveTo(0,i);cx.lineTo(TILE,i);cx.stroke();
+                }
+            }
+            return cv;
+        }
+
+        function mkSky(c1,c2){
+            const cv=document.createElement('canvas'); cv.width=TILE*2; cv.height=TILE;
+            const cx=cv.getContext('2d');
+            const g=cx.createLinearGradient(0,0,0,TILE);
+            g.addColorStop(0,c2); g.addColorStop(0.7,c1); g.addColorStop(1,c1);
+            cx.fillStyle=g; cx.fillRect(0,0,cv.width,cv.height);
+            for(let i=0;i<120;i++){
+                const x=Math.random()*cv.width,y=Math.random()*cv.height*0.85,s=Math.random()*1.3+0.3;
+                cx.fillStyle=`rgba(255,255,${Math.floor(Math.random()*55+200)},${Math.random()*0.7+0.3})`;
+                cx.beginPath();cx.arc(x,y,s,0,Math.PI*2);cx.fill();
+            }
+            return cv;
+        }
+
+        function mkCD(golden=false){
+            const cv=document.createElement('canvas'); cv.width=cv.height=TILE;
+            const cx=cv.getContext('2d');
+            const [cx2,cy2,oR,iR]=[TILE/2,TILE/2,TILE*0.45,TILE*0.1];
+            const g=cx.createRadialGradient(cx2,cy2,iR,cx2,cy2,oR);
+            if(golden){g.addColorStop(0,'#FFFFE0');g.addColorStop(0.5,'#FFD700');g.addColorStop(1,'#FFA500');}
+            else{g.addColorStop(0,'#EEEEFF');g.addColorStop(0.6,'#A0A0CC');g.addColorStop(1,'#C0C0EE');}
+            cx.fillStyle=g; cx.beginPath();cx.arc(cx2,cy2,oR,0,Math.PI*2);cx.fill();
+            if(!golden){
+                const sc=['rgba(255,0,0,.25)','rgba(255,165,0,.25)','rgba(255,255,0,.25)','rgba(0,200,0,.25)','rgba(0,0,255,.25)','rgba(148,0,211,.25)','rgba(238,130,238,.25)'];
+                for(let i=0;i<7;i++){
+                    cx.beginPath();
+                    const a=(i/7)*Math.PI*0.3,s=Math.PI*(0.2+i*0.2)+a,e=s+Math.PI*0.3,r=oR*(0.6+Math.random()*0.3);
+                    cx.arc(cx2,cy2,r,s,e);cx.strokeStyle=sc[i%sc.length];cx.lineWidth=TILE*0.055;cx.stroke();
+                }
+            } else {
+                for(let i=0;i<12;i++){
+                    cx.beginPath(); const a=(i/12)*Math.PI*2;
+                    cx.moveTo(cx2+Math.cos(a)*iR,cy2+Math.sin(a)*iR);
+                    cx.lineTo(cx2+Math.cos(a+0.1)*oR*0.95,cy2+Math.sin(a+0.1)*oR*0.95);
+                    cx.strokeStyle=`rgba(255,255,180,${0.2+Math.random()*0.3})`;cx.lineWidth=TILE*0.02;cx.stroke();
+                }
+            }
+            cx.fillStyle=golden?'#4A2C00':'#202030';
+            cx.beginPath();cx.arc(cx2,cy2,iR,0,Math.PI*2);cx.fill();
+            if(!golden){cx.strokeStyle='rgba(255,255,255,0.5)';cx.lineWidth=TILE*0.015;cx.beginPath();cx.arc(cx2,cy2,oR,0,Math.PI*2);cx.stroke();}
+            if(golden){for(let i=0;i<5;i++){cx.fillStyle=`rgba(255,255,200,${0.5+Math.random()*0.5})`;const sx=cx2+(Math.random()-.5)*oR*1.5,sy=cy2+(Math.random()-.5)*oR*1.5,ss=TILE*(0.02+Math.random()*0.03);cx.fillRect(sx-ss/2,sy-ss/2,ss,ss);}}
+            return cv;
+        }
+
+        function buildSprites(){
+            textures.cd=mkCD(false); textures.goldenCd=mkCD(true);
+
+            const xr=document.createElement('canvas');xr.width=xr.height=TILE;const xc=xr.getContext('2d');
+            xc.strokeStyle='#40E0D0';xc.lineWidth=3;
+            xc.beginPath();xc.arc(20,32,12,0,Math.PI*2);xc.stroke();
+            xc.beginPath();xc.arc(44,32,12,0,Math.PI*2);xc.stroke();
+            xc.fillStyle='rgba(173,216,230,0.45)';
+            xc.beginPath();xc.arc(20,32,10,0,Math.PI*2);xc.fill();
+            xc.beginPath();xc.arc(44,32,10,0,Math.PI*2);xc.fill();
+            textures.xray=xr;
+
+            const fr=document.createElement('canvas');fr.width=fr.height=TILE;const fc=fr.getContext('2d');
+            fc.fillStyle='#ADD8E6';fc.beginPath();fc.arc(32,32,22,0,Math.PI*2);fc.fill();
+            fc.strokeStyle='#87CEEB';fc.lineWidth=3;fc.stroke();
+            fc.fillStyle='#FFF';fc.fillRect(30,16,4,18);fc.fillRect(20,30,16,4);
+            textures.freeze=fr;
+
+            const pf=document.createElement('canvas');pf.width=pf.height=TILE;const pc=pf.getContext('2d');
+            pc.fillStyle='#FFD700';
+            pc.beginPath();pc.moveTo(32,10);pc.lineTo(42,22);pc.lineTo(36,22);pc.lineTo(36,54);pc.lineTo(28,54);pc.lineTo(28,22);pc.lineTo(22,22);pc.closePath();pc.fill();
+            pc.strokeStyle='#B8860B';pc.lineWidth=2;pc.stroke();
+            textures.pathfinder=pf;
+
+            const id=document.createElement('canvas');id.width=id.height=TILE;const ic=id.getContext('2d');
+            ic.fillStyle='#4B0082';ic.beginPath();ic.moveTo(32,12);ic.lineTo(45,52);ic.lineTo(19,52);ic.closePath();ic.fill();
+            ic.fillStyle='#9B30FF';ic.beginPath();ic.arc(32,20,5,0,Math.PI*2);ic.fill();
+            textures.curse=id;
+
+            const go=document.createElement('canvas');go.width=go.height=TILE;const gc=go.getContext('2d');
+            gc.fillStyle='#4a6020';gc.beginPath();gc.ellipse(32,46,26,13,0,0,Math.PI*2);gc.fill();
+            gc.fillStyle='#6a8030';gc.beginPath();gc.ellipse(32,44,18,9,0,0,Math.PI*2);gc.fill();
+            textures.goo=go;
+        }
+
+        function loadLevelGfx(idx){
+            const d=LEVELS[idx%LEVELS.length];
+            textures.wall    = mkTex(d.colors.w1, d.colors.w2, false, true);
+            textures.floor   = mkTex(d.colors.f1, d.colors.f2, true);
+            textures.ceiling = mkSky(d.colors.c1, d.colors.c2);
+        }
+
+        // ── SPAWN SYSTEM ──
+        function emptyTiles(){
+            const e=[];
+            for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++)
+                if(mapData[y][x]===0 && Math.hypot((x+.5)*TILE-player.x,(y+.5)*TILE-player.y)>TILE*2)
+                    e.push({x,y});
             return e;
         }
 
-        function spawnEntity(entityList, typeStr, maxCount = 1) {
-            const currentCount = entityList.filter(e => e.type === typeStr && e.active).length;
-            if(currentCount >= maxCount) return;
-            const emptyTiles = findEmptyTiles();
-            if (emptyTiles.length > 0) {
-                const pos = emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
-                entityList.push({
-                    x: (pos.x + 0.5) * TILE_SIZE,
-                    y: (pos.y + 0.5) * TILE_SIZE,
-                    active: true,
-                    type: typeStr
-                });
-            }
+        function spawnOne(list,type,max=1){
+            if(list.filter(e=>e.type===type&&e.active).length>=max) return;
+            const tiles=emptyTiles();
+            if(!tiles.length) return;
+            const p=tiles[Math.floor(Math.random()*tiles.length)];
+            list.push({x:(p.x+.5)*TILE, y:(p.y+.5)*TILE, active:true, type});
         }
 
-        function triggerSpawnCycle() {
-            // Main CD
-            if(!powerups.find(p => p.type === 'cd' && p.active)) {
-                const isGolden = Math.random() < 0.15; // 15% chance for golden
-                const emptyTiles = findEmptyTiles();
-                if(emptyTiles.length > 0) {
-                    const pos = emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
-                    powerups.push({ x: (pos.x+0.5)*TILE_SIZE, y: (pos.y+0.5)*TILE_SIZE, active: true, type: 'cd', golden: isGolden });
+        function spawnCycle(){
+            const design=LEVELS[lvlIndex%LEVELS.length];
+            const rem=design.targetCDs - cdsThisLevel;
+
+            // Always keep 3 CDs visible (or however many remain)
+            const activeCDs=powerups.filter(p=>p.type==='cd'&&p.active).length;
+            for(let i=activeCDs; i<Math.min(3,rem); i++){
+                const golden=Math.random()<0.2;
+                const tiles=emptyTiles();
+                if(tiles.length){
+                    const p=tiles[Math.floor(Math.random()*tiles.length)];
+                    powerups.push({x:(p.x+.5)*TILE,y:(p.y+.5)*TILE,active:true,type:'cd',golden});
                 }
             }
-            
-            // Random Powerups & Hazards
-            if(Math.random() < 0.3) {
-                const types = ['freeze', 'pathfinder', 'xray'];
-                spawnEntity(powerups, types[Math.floor(Math.random()*types.length)]);
-            }
-            if(Math.random() < 0.4) {
-                const types = ['curse', 'goo'];
-                spawnEntity(hazards, types[Math.floor(Math.random()*types.length)], 3); 
-            }
+
+            // Always keep 1 of each powerup type active
+            ['freeze','pathfinder','xray'].forEach(t=>spawnOne(powerups,t,1));
+
+            // Keep up to 2 of each hazard
+            ['curse','goo'].forEach(t=>spawnOne(hazards,t,2));
         }
 
-        function updateHUD() {
-            ui.timerDisplay.textContent = `${timeLeft}s`;
-            ui.scoreDisplay.textContent = `CDs: ${cdsCollectedThisLevel}/${LEVEL_DESIGNS[currentLevelIndex % LEVEL_DESIGNS.length].targetCDs}`;
-            ui.levelDisplay.textContent = `LVL: ${currentLevelIndex + 1}`;
-
-            const percent = Math.min(100, Math.max(0, (timeLeft / INITIAL_TIME) * 100));
-            ui.timerProgressBar.style.width = `${percent}%`;
-            ui.timerProgressBar.style.backgroundColor = percent < 25 ? '#FF4136' : (percent < 50 ? '#FFDC00' : '#2ECC40');
-
-            // Active Effects Bar
-            ui.activeEffectsBar.innerHTML = '';
-            for(let key in effects) {
-                if(effects[key].active) {
-                    const badge = document.createElement('div');
-                    badge.className = 'effect-badge';
-                    badge.style.backgroundColor = effects[key].color;
-                    badge.textContent = effects[key].name;
-                    ui.activeEffectsBar.appendChild(badge);
-                }
-            }
-            if(ui.activeEffectsBar.innerHTML === '') {
-                ui.activeEffectsBar.innerHTML = '<span style="color:#505070; font-size:8px;">SYSTEMS NORMAL</span>';
-            }
+        // ── HUD & MESSAGES ──
+        let msgTimer=null;
+        function showMsg(msg){
+            ui.messageDisplay.textContent=msg;
+            ui.messageDisplay.classList.add('visible');
+            clearTimeout(msgTimer);
+            msgTimer=setTimeout(()=>ui.messageDisplay.classList.remove('visible'),2400);
         }
 
-        function showMessage(msg) {
-            ui.messageDisplay.textContent = msg;
-            ui.messageDisplay.style.color = '#FFF';
-            setTimeout(()=> { if(ui.messageDisplay.textContent === msg) ui.messageDisplay.textContent = ''; }, 3000);
+        function updateHUD(){
+            ui.timerDisplay.textContent=`${Math.ceil(timeLeft)}s`;
+            const design=LEVELS[lvlIndex%LEVELS.length];
+            ui.scoreDisplay.textContent=`${cdsThisLevel} / ${design.targetCDs}`;
+            ui.levelDisplay.textContent=`LVL ${lvlIndex+1}`;
+            ui.levelNameDisplay.textContent=design.name.toUpperCase();
+
+            const pct=Math.min(100,Math.max(0,(timeLeft/INIT_TIME)*100));
+            ui.timerProgressBar.style.width=`${pct}%`;
+            ui.timerProgressBar.style.backgroundColor=pct<25?'#FF4136':pct<55?'#FFDC00':'#2ECC40';
+
+            ui.activeEffectsBar.innerHTML='';
+            let any=false;
+            for(const k in FX) if(FX[k].active){
+                any=true;
+                const b=document.createElement('div');
+                b.className='effect-badge';
+                b.style.backgroundColor=FX[k].col;
+                b.textContent=FX[k].name;
+                ui.activeEffectsBar.appendChild(b);
+            }
+            ui.activeEffectsBar.classList.toggle('has-effects',any);
         }
 
-        function activateEffect(type) {
-            if(effects[type].timerId) clearTimeout(effects[type].timerId);
-            effects[type].active = true;
-            effects[type].timerId = setTimeout(() => {
-                effects[type].active = false;
-                updateHUD();
-            }, effects[type].duration);
+        function activateFX(type){
+            if(FX[type].id) clearTimeout(FX[type].id);
+            FX[type].active=true;
+            FX[type].id=setTimeout(()=>{FX[type].active=false;updateHUD();},FX[type].dur);
             updateHUD();
         }
 
-        function clearAllEffects() {
-            for(let key in effects) {
-                effects[key].active = false;
-                if(effects[key].timerId) clearTimeout(effects[key].timerId);
-            }
+        function clearFX(){
+            for(const k in FX){FX[k].active=false;clearTimeout(FX[k].id);}
         }
 
-        function spawnParticles(x, y, colorStr) {
-            for(let i=0; i<15; i++) {
-                particles.push({
-                    x: x, y: y, size: Math.random()*2+1,
-                    vx: (Math.random()-0.5)*1.5, vy: (Math.random()-0.5)*1.5,
-                    color: colorStr, alpha: 1, life: 30
-                });
-            }
+        function spawnParticles(x,y,col){
+            for(let i=0;i<18;i++)
+                particles.push({x,y,size:Math.random()*2.5+1,vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2,color:col,alpha:1,life:35});
         }
 
-        function loadLevel(index) {
-            currentLevelIndex = index;
-            const design = LEVEL_DESIGNS[index % LEVEL_DESIGNS.length];
-            loopMultiplier = 1 + Math.floor(index / LEVEL_DESIGNS.length) * 0.5;
-            
-            mapData = design.map.map(r => [...r]);
-            MAP_WIDTH = mapData[0].length; MAP_HEIGHT = mapData.length;
-            
-            loadLevelGraphics(index);
-            powerups = []; hazards = []; particles = [];
-            cdsCollectedThisLevel = 0;
-            clearAllEffects();
+        // ── LEVEL LOADING ──
+        function loadLevel(idx){
+            lvlIndex=idx;
+            const loop=Math.floor(idx/LEVELS.length);
+            loopMult=1+loop*0.5;
 
-            // Find start pos
-            let placed = false;
-            for(let y=0; y<MAP_HEIGHT; y++) {
-                for(let x=0; x<MAP_WIDTH; x++) {
-                    if(!placed && mapData[y][x] === 0) {
-                        player.x = (x+0.5)*TILE_SIZE; player.y = (y+0.5)*TILE_SIZE;
-                        player.angle = Math.PI/2; placed = true; break;
-                    }
-                }
-                if(placed) break;
-            }
+            // Maze grows each loop cycle, capped at 19×15
+            const mW=Math.min(19,13+loop*2);
+            const mH=Math.min(15,11+loop*2);
+            mapData=generateMaze(mW,mH);
+            MAP_W=mapData[0].length; MAP_H=mapData.length;
 
-            triggerSpawnCycle();
+            loadLevelGfx(idx);
+            powerups=[]; hazards=[]; particles=[]; cdsThisLevel=0;
+            clearFX();
+
+            // Place player at first open cell
+            outer: for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++)
+                if(mapData[y][x]===0){player.x=(x+.5)*TILE;player.y=(y+.5)*TILE;player.angle=Math.PI/2;break outer;}
+
+            spawnCycle();
             updateHUD();
         }
 
-        function levelComplete() {
-            gameRunning = false;
-            const timeBonus = 15;
-            timeLeft += timeBonus;
-            
-            ui.transitionTitle.textContent = `LEVEL ${currentLevelIndex + 1} COMPLETE!`;
-            ui.transitionSubtitle.textContent = `Time Bonus: +${timeBonus}s`;
-            ui.transitionGoal.textContent = "Prepare for next floor...";
+        function levelComplete(){
+            gameRunning=false;
+            const bonus=15;
+            timeLeft+=bonus;
+
+            ui.transitionTitle.textContent=`LEVEL ${lvlIndex+1} CLEAR`;
+            ui.transitionSubtitle.textContent=`+${bonus} SECONDS BONUS`;
+            ui.transitionGoal.textContent='Prepare for next floor...';
             ui.levelTransitionOverlay.classList.add('active');
 
-            setTimeout(() => {
-                loadLevel(currentLevelIndex + 1);
-                ui.transitionTitle.textContent = `LEVEL ${currentLevelIndex + 1}`;
-                ui.transitionSubtitle.textContent = LEVEL_DESIGNS[currentLevelIndex % LEVEL_DESIGNS.length].name;
-                ui.transitionGoal.textContent = `Collect ${LEVEL_DESIGNS[currentLevelIndex % LEVEL_DESIGNS.length].targetCDs} CDs`;
-                
-                setTimeout(() => {
+            setTimeout(()=>{
+                loadLevel(lvlIndex+1);
+                const design=LEVELS[lvlIndex%LEVELS.length];
+                ui.transitionTitle.textContent=`LEVEL ${lvlIndex+1}`;
+                ui.transitionSubtitle.textContent=design.name;
+                ui.transitionGoal.textContent=`Collect ${design.targetCDs} CDs`;
+
+                setTimeout(()=>{
                     ui.levelTransitionOverlay.classList.remove('active');
-                    gameRunning = true;
-                    lastTime = performance.now();
-                }, 1500);
-            }, 2000);
+                    gameRunning=true;
+                    // Restart render loop — this was missing and caused level 2+ to freeze
+                    if(rafId) cancelAnimationFrame(rafId);
+                    rafId=requestAnimationFrame(gameLoop);
+                },1500);
+            },2200);
         }
 
-        // --- Input Handling ---
+        // ── INPUT ──
         const keys={};
-        function setupControls() {
-            window.addEventListener('keydown', e => {
-                keys[e.key.toLowerCase()] = true;
-                if(e.key === 'Enter' && !gameRunning && !ui.titleScreen.classList.contains('hidden')) startGameSequence();
+        function setupInput(){
+            window.addEventListener('keydown',e=>{
+                keys[e.key.toLowerCase()]=true;
+                if(e.key==='Enter'&&!gameRunning&&!ui.titleScreen.classList.contains('hidden'))
+                    startGame();
             });
-            window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+            window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
 
-            const bindBtn = (id, k) => {
-                const btn = document.getElementById(id);
-                btn.addEventListener('touchstart', e => { e.preventDefault(); keys[k] = true; btn.classList.add('active'); });
-                btn.addEventListener('touchend', e => { e.preventDefault(); keys[k] = false; btn.classList.remove('active'); });
-                btn.addEventListener('mousedown', e => { keys[k] = true; btn.classList.add('active'); });
-                btn.addEventListener('mouseup', e => { keys[k] = false; btn.classList.remove('active'); });
-                btn.addEventListener('mouseleave', e => { keys[k] = false; btn.classList.remove('active'); });
+            const bind=(id,k)=>{
+                const b=document.getElementById(id);
+                b.addEventListener('touchstart',e=>{e.preventDefault();keys[k]=true;b.classList.add('active');});
+                b.addEventListener('touchend',  e=>{e.preventDefault();keys[k]=false;b.classList.remove('active');});
+                b.addEventListener('mousedown', ()=>{keys[k]=true; b.classList.add('active');});
+                b.addEventListener('mouseup',   ()=>{keys[k]=false;b.classList.remove('active');});
+                b.addEventListener('mouseleave',()=>{keys[k]=false;b.classList.remove('active');});
             };
-            bindBtn('arrowUp', 'arrowup'); bindBtn('arrowDown', 'arrowdown');
-            bindBtn('arrowLeft', 'arrowleft'); bindBtn('arrowRight', 'arrowright');
+            bind('arrowUp','arrowup'); bind('arrowDown','arrowdown');
+            bind('arrowLeft','arrowleft'); bind('arrowRight','arrowright');
         }
 
-        function handleInput() {
+        function handleInput(){
             if(!gameRunning) return;
-            const speed = effects.goo.active ? ORIGINAL_MOVE_SPEED * 0.4 : ORIGINAL_MOVE_SPEED;
-            let moveStep = 0, strafeStep = 0;
-            
-            if(keys['arrowup']||keys['w']) moveStep = speed;
-            if(keys['arrowdown']||keys['s']) moveStep = -speed;
-            if(keys['q']) strafeStep = -speed; 
-            if(keys['e']) strafeStep = speed;
+            const spd=FX.goo.active?MOVE_SPEED*0.38:MOVE_SPEED;
+            let mv=0, st=0;
+            if(keys['arrowup']  ||keys['w']) mv= spd;
+            if(keys['arrowdown']||keys['s']) mv=-spd;
+            if(keys['q']) st=-spd;
+            if(keys['e']) st= spd;
+            if(keys['arrowleft'] ||keys['a']) player.angle-=TURN_SPEED;
+            if(keys['arrowright']||keys['d']) player.angle+=TURN_SPEED;
+            player.angle=(player.angle+Math.PI*2)%(Math.PI*2);
 
-            if(keys['arrowleft']||keys['a']) player.angle -= TURN_SPEED;
-            if(keys['arrowright']||keys['d']) player.angle += TURN_SPEED;
-            player.angle = (player.angle + Math.PI*2) % (Math.PI*2);
-            
-            let dx = Math.cos(player.angle)*moveStep - Math.sin(player.angle)*strafeStep;
-            let dy = Math.sin(player.angle)*moveStep + Math.cos(player.angle)*strafeStep;
+            const dx=Math.cos(player.angle)*mv - Math.sin(player.angle)*st;
+            const dy=Math.sin(player.angle)*mv + Math.cos(player.angle)*st;
+            const buf=TILE*0.2;
 
-            if (dx !== 0 || dy !== 0) walkCycle += 0.2;
-
-            // Smooth Wall Sliding Collision
-            const buffer = TILE_SIZE * 0.2;
-            if (dx !== 0) {
-                const checkX = player.x + dx + (dx > 0 ? buffer : -buffer);
-                const tY = Math.floor(player.y / TILE_SIZE);
-                if (mapData[tY] && mapData[tY][Math.floor(checkX / TILE_SIZE)] === 0) player.x += dx;
+            if(dx){
+                const cx=player.x+dx+(dx>0?buf:-buf);
+                if(mapData[Math.floor(player.y/TILE)]?.[Math.floor(cx/TILE)]===0) player.x+=dx;
             }
-            if (dy !== 0) {
-                const checkY = player.y + dy + (dy > 0 ? buffer : -buffer);
-                const tX = Math.floor(player.x / TILE_SIZE);
-                if (mapData[Math.floor(checkY / TILE_SIZE)] && mapData[Math.floor(checkY / TILE_SIZE)][tX] === 0) player.y += dy;
+            if(dy){
+                const cy=player.y+dy+(dy>0?buf:-buf);
+                if(mapData[Math.floor(cy/TILE)]?.[Math.floor(player.x/TILE)]===0) player.y+=dy;
             }
 
-            // Entity Check
-            const checkCollect = (list, isHazard) => {
-                for(let i=list.length-1; i>=0; i--) {
-                    const e = list[i];
-                    if(e.active && Math.hypot(player.x - e.x, player.y - e.y) < TILE_SIZE*0.6) {
-                        e.active = false;
-                        grabTimer = 10; // Trigger hand grabbing animation
-                        
-                        if(isHazard) {
-                            if(e.type === 'curse') { activateEffect('curse'); showMessage("CURSED! BLINDNESS!"); }
-                            if(e.type === 'goo') { activateEffect('goo'); showMessage("GOO SLOWDOWN!"); }
-                        } else {
-                            if(e.type === 'cd') {
-                                if(e.golden) {
-                                    globalScore += 5; timeLeft += 10; showMessage("GOLDEN CD! +10s!");
-                                    spawnParticles(e.x, e.y, "rgba(255,215,0,0.8)");
-                                } else {
-                                    globalScore += 1; cdsCollectedThisLevel++; timeLeft += 5; showMessage("CD FETCHED! +5s");
-                                    spawnParticles(e.x, e.y, "rgba(200,200,255,0.8)");
-                                }
-                                updateHUD();
-                                const target = LEVEL_DESIGNS[currentLevelIndex % LEVEL_DESIGNS.length].targetCDs;
-                                if(cdsCollectedThisLevel >= target) {
-                                    setTimeout(levelComplete, 100);
-                                } else {
-                                    setTimeout(triggerSpawnCycle, 100);
-                                }
-                            }
-                            else if(e.type === 'freeze') { activateEffect('freeze'); showMessage("TIME FROZEN!"); }
-                            else if(e.type === 'pathfinder') { activateEffect('pathfinder'); showMessage("BEACON ACTIVE!"); }
-                            else if(e.type === 'xray') { activateEffect('xray'); showMessage("X-RAY VISION!"); }
+            const collect=(list,hazard)=>{
+                for(let i=list.length-1;i>=0;i--){
+                    const e=list[i];
+                    if(!e.active||Math.hypot(player.x-e.x,player.y-e.y)>=TILE*0.62) continue;
+                    e.active=false;
+                    if(hazard){
+                        if(e.type==='curse'){activateFX('curse');showMsg('CURSED! BLINDNESS!');playSound(audio.curse);}
+                        if(e.type==='goo')  {activateFX('goo');  showMsg('GOO SLOWDOWN!');    playSound(audio.goo);}
+                    } else {
+                        if(e.type==='cd'){
+                            if(e.golden){score+=5;cdsThisLevel++;timeLeft+=10;showMsg('GOLDEN CD! +10s!');playSound(audio.goldenCd);spawnParticles(e.x,e.y,'rgba(255,215,0,.85)');}
+                            else         {score+=1;cdsThisLevel++;timeLeft+=5; showMsg('CD FOUND! +5s');   playSound(audio.cd);        spawnParticles(e.x,e.y,'rgba(200,200,255,.85)');}
+                            updateHUD();
+                            const target=LEVELS[lvlIndex%LEVELS.length].targetCDs;
+                            if(cdsThisLevel>=target) setTimeout(levelComplete,100);
+                            else setTimeout(spawnCycle,120);
                         }
+                        else if(e.type==='freeze')    {activateFX('freeze');    showMsg('TIME FROZEN!');   playSound(audio.freeze);}
+                        else if(e.type==='pathfinder'){activateFX('pathfinder');showMsg('BEACON ACTIVE!'); playSound(audio.pathfinder);}
+                        else if(e.type==='xray')      {activateFX('xray');      showMsg('X-RAY VISION!');}
                     }
                 }
             };
-            checkCollect(powerups, false);
-            checkCollect(hazards, true);
+            collect(powerups,false);
+            collect(hazards, true);
         }
 
-        // --- Rendering ---
-        function render() {
+        // ── RENDERER ──
+        function render(){
             if(!gameRunning) return;
+            const hz=RENDER_H/2;
 
-            ui.mainCanvas.width = ui.gameplayScreen.clientWidth; 
-            ui.mainCanvas.height = ui.gameplayScreen.clientHeight;
+            oCtx.drawImage(textures.ceiling,0,0,RENDER_W,hz);
+            oCtx.drawImage(textures.floor,  0,hz,RENDER_W,RENDER_H-hz);
 
-            // View Bobbing calculation
-            const bobOffset = Math.sin(walkCycle) * 2;
-            const horizon = (RENDER_HEIGHT / 2) + bobOffset;
+            const {r,g,b}=LEVELS[lvlIndex%LEVELS.length].fog;
 
-            offscreenCtx.drawImage(textures.ceiling,0,0,RENDER_WIDTH,horizon);
-            offscreenCtx.drawImage(textures.floor,0,horizon,RENDER_WIDTH,RENDER_HEIGHT-horizon);
+            for(let i=0;i<RAYS;i++){
+                const ra=player.angle - FOV/2 + (i/RAYS)*FOV;
+                const ex=Math.cos(ra), ey=Math.sin(ra);
+                let d=0, hit=false, side=0;
 
-            for(let i=0; i<NUM_RAYS; i++) {
-                const rayAngle = player.angle - FOV/2 + (i/NUM_RAYS)*FOV;
-                let dTW=0, hW=false, hE=false;
-                const eX = Math.cos(rayAngle), eY = Math.sin(rayAngle);
-
-                while(!hW && dTW < TILE_SIZE * MAP_WIDTH) {
-                    dTW++;
-                    const tX = Math.floor((player.x + eX*dTW)/TILE_SIZE);
-                    const tY = Math.floor((player.y + eY*dTW)/TILE_SIZE);
-                    
-                    if(tX<0 || tX>=MAP_WIDTH || tY<0 || tY>=MAP_HEIGHT) { hW=true; dTW=TILE_SIZE*MAP_WIDTH; }
-                    else if(mapData[tY][tX] === 1) {
-                        hW=true;
-                        const bMX = tX*TILE_SIZE + TILE_SIZE/2, bMY = tY*TILE_SIZE + TILE_SIZE/2;
-                        const rPX = player.x + eX*dTW, rPY = player.y + eY*dTW;
-                        const tAng = Math.atan2(rPY-bMY, rPX-bMX);
-                        if(tAng>=-Math.PI*0.25 && tAng<Math.PI*0.25) hE=0; else if(tAng>=Math.PI*0.25 && tAng<Math.PI*0.75) hE=1; else if(tAng<-Math.PI*0.25 && tAng>=-Math.PI*0.75) hE=1; else hE=0;
+                while(!hit && d<TILE*MAP_W){
+                    d++;
+                    const tx=Math.floor((player.x+ex*d)/TILE);
+                    const ty=Math.floor((player.y+ey*d)/TILE);
+                    if(tx<0||tx>=MAP_W||ty<0||ty>=MAP_H){hit=true;d=TILE*MAP_W;}
+                    else if(mapData[ty][tx]===1){
+                        hit=true;
+                        const a=Math.atan2((player.y+ey*d)-ty*TILE-TILE/2,(player.x+ex*d)-tx*TILE-TILE/2);
+                        side=(a>=-Math.PI*.25&&a<Math.PI*.25)||(a<-Math.PI*.75||a>=Math.PI*.75)?0:1;
                     }
                 }
-                
-                const cD = dTW * Math.cos(rayAngle - player.angle);
-                distToWallBuffer[i] = cD;
-                const wH = Math.min(RENDER_HEIGHT, (TILE_SIZE/cD)*RENDER_HEIGHT);
-                const wT = horizon - wH/2;
-                
-                if (effects.xray.active) {
-                    offscreenCtx.globalAlpha = 0.3;
-                    offscreenCtx.drawImage(textures.wall, Math.floor(hE ? (player.x+eX*dTW)%TILE_SIZE : (player.y+eY*dTW)%TILE_SIZE), 0, 1, TILE_SIZE, i, wT, 1, wH);
-                    offscreenCtx.globalAlpha = 1;
-                    offscreenCtx.strokeStyle = 'rgba(0,255,255,0.4)'; offscreenCtx.lineWidth = 0.5; offscreenCtx.strokeRect(i, wT, 1, wH);
+
+                const cd=d*Math.cos(ra-player.angle);
+                wallDist[i]=cd;
+                const wh=Math.min(RENDER_H,(TILE/cd)*RENDER_H);
+                const wt=hz-wh/2;
+                const tx=Math.floor(side?(player.y+ey*d)%TILE:(player.x+ex*d)%TILE);
+
+                if(FX.xray.active){
+                    oCtx.globalAlpha=0.28;
+                    oCtx.drawImage(textures.wall,tx,0,1,TILE,i,wt,1,wh);
+                    oCtx.globalAlpha=1;
+                    oCtx.strokeStyle='rgba(0,255,255,.35)';oCtx.lineWidth=.5;oCtx.strokeRect(i,wt,1,wh);
                 } else {
-                    offscreenCtx.drawImage(textures.wall, Math.floor(hE ? (player.x+eX*dTW)%TILE_SIZE : (player.y+eY*dTW)%TILE_SIZE), 0, 1, TILE_SIZE, i, wT, 1, wH);
-                    const sF = Math.max(0.05, 1 - (cD/(TILE_SIZE*7)));
-                    offscreenCtx.fillStyle = `rgba(10,0,20,${1-sF})`; offscreenCtx.fillRect(i, wT, 1, wH);
+                    oCtx.drawImage(textures.wall,tx,0,1,TILE,i,wt,1,wh);
+                    const shade=Math.max(.04,1-(cd/(TILE*7)));
+                    oCtx.fillStyle=`rgba(${r},${g},${b},${1-shade})`;
+                    oCtx.fillRect(i,wt,1,wh);
                 }
             }
 
-            // Draw Sprites
-            const allEntities = [...powerups, ...hazards].filter(e => e.active);
-            allEntities.sort((a,b) => Math.hypot(b.x-player.x, b.y-player.y) - Math.hypot(a.x-player.x, a.y-player.y));
+            // Sprites
+            const ents=[...powerups,...hazards].filter(e=>e.active);
+            ents.sort((a,b)=>Math.hypot(b.x-player.x,b.y-player.y)-Math.hypot(a.x-player.x,a.y-player.y));
 
-            allEntities.forEach(item => {
-                const dX = item.x - player.x, dY = item.y - player.y, dTS = Math.hypot(dX, dY);
-                let sA = (Math.atan2(dY, dX) - player.angle + Math.PI*2) % (Math.PI*2); if(sA>Math.PI) sA -= Math.PI*2;
-                
-                if(Math.abs(sA) < FOV/1.5 && dTS > TILE_SIZE*0.1) {
-                    let sprite = textures[item.type] || textures.cd;
-                    if(item.type === 'cd' && item.golden) sprite = textures.goldenCd;
+            for(const item of ents){
+                const dx=item.x-player.x, dy=item.y-player.y;
+                const dist=Math.hypot(dx,dy);
+                let sa=(Math.atan2(dy,dx)-player.angle+Math.PI*2)%(Math.PI*2);
+                if(sa>Math.PI) sa-=Math.PI*2;
+                if(Math.abs(sa)>=FOV/1.5||dist<TILE*.1) continue;
 
-                    let scale = (item.type==='goo') ? 0.5 : (item.type==='cd' ? 0.65 : 0.4);
-                    let sS = Math.min(RENDER_HEIGHT, (TILE_SIZE/dTS)*RENDER_HEIGHT * scale);
-                    const sSX = RENDER_WIDTH/2 + (sA/(FOV/2))*(RENDER_WIDTH/2) - sS/2;
-                    let sSY = horizon - sS/2 + (TILE_SIZE/dTS*3.5);
-                    if(item.type === 'goo') sSY = horizon + (TILE_SIZE*0.4/dTS)*(RENDER_HEIGHT/2) - sS*0.25;
+                let spr=textures[item.type]||textures.cd;
+                if(item.type==='cd'&&item.golden) spr=textures.goldenCd;
 
-                    if(sSX+sS > 0 && sSX < RENDER_WIDTH) {
-                        const rayIndex = Math.floor(Math.max(0, Math.min(NUM_RAYS-1, sSX + sS/2)));
-                        const distToWall = distToWallBuffer[rayIndex];
-                        // If pathfinder/xray is active, see through walls. Else check occlusion.
-                        if(effects.xray.active || (effects.pathfinder.active && item.type === 'cd') || dTS < distToWall + TILE_SIZE*0.1) {
-                            offscreenCtx.globalAlpha = Math.max(0.2, 1 - dTS/(TILE_SIZE*15));
-                            
-                            let dS = sS;
-                            if(effects.pathfinder.active && item.type === 'cd') {
-                                dS *= (Math.sin(Date.now()/150)*0.2 + 1);
-                                offscreenCtx.shadowColor = '#FFD700'; offscreenCtx.shadowBlur = 10;
-                            }
-                            
-                            if(item.type === 'goo') offscreenCtx.drawImage(sprite, sSX, sSY, sS, sS*0.5);
-                            else offscreenCtx.drawImage(sprite, sSX, sSY, dS, dS);
-                            
-                            offscreenCtx.shadowBlur = 0; offscreenCtx.globalAlpha = 1;
-                        }
-                    }
+                const sc=item.type==='goo'?.5:item.type==='cd'?.65:.55;
+                const ss=Math.min(RENDER_H,(TILE/dist)*RENDER_H*sc);
+                const sx=RENDER_W/2+(sa/(FOV/2))*(RENDER_W/2)-ss/2;
+                let sy=hz-ss/2;
+                if(item.type==='goo') sy=hz+ss*.1;
+                if(sx+ss<=0||sx>=RENDER_W) continue;
+
+                const proj=dist*Math.cos(sa);
+                const ri=Math.floor(Math.max(0,Math.min(RAYS-1,sx+ss/2)));
+                const vis=FX.xray.active||(FX.pathfinder.active&&item.type==='cd')||proj<wallDist[ri]+TILE*.1;
+                if(!vis) continue;
+
+                oCtx.globalAlpha=Math.max(.18,1-dist/(TILE*15));
+                let ds=ss;
+                if(FX.pathfinder.active&&item.type==='cd'){
+                    ds*=(Math.sin(Date.now()/150)*.2+1);
+                    oCtx.shadowColor='#FFD700'; oCtx.shadowBlur=12;
                 }
-            });
+                if(item.type==='goo') oCtx.drawImage(spr,sx,sy,ss,ss*.5);
+                else oCtx.drawImage(spr,sx-(ds-ss)/2,sy-(ds-ss)/2,ds,ds);
+                oCtx.shadowBlur=0; oCtx.globalAlpha=1;
+            }
 
             // Particles
-            for(let i=particles.length-1; i>=0; i--) {
-                const p = particles[i];
-                p.x += p.vx; p.y += p.vy; p.alpha -= 0.05; p.life--;
-                if(p.life<=0 || p.alpha<=0) { particles.splice(i,1); continue; }
-                const dX = p.x-player.x, dY = p.y-player.y, dTS = Math.hypot(dX,dY);
-                if(dTS>10) {
-                    let sA = (Math.atan2(dY, dX) - player.angle + Math.PI*2) % (Math.PI*2); if(sA>Math.PI) sA -= Math.PI*2;
-                    if(Math.abs(sA)<FOV/1.5) {
-                        const sSX = RENDER_WIDTH/2 + (sA/(FOV/2))*(RENDER_WIDTH/2);
-                        const sSY = horizon + (TILE_SIZE/dTS*2);
-                        const pSz = Math.max(1, (p.size*TILE_SIZE)/(dTS*2));
-                        offscreenCtx.globalAlpha = p.alpha; offscreenCtx.fillStyle = p.color;
-                        offscreenCtx.fillRect(sSX, sSY, pSz, pSz); offscreenCtx.globalAlpha = 1;
+            for(let i=particles.length-1;i>=0;i--){
+                const p=particles[i];
+                p.x+=p.vx;p.y+=p.vy;p.alpha-=.04;p.life--;
+                if(p.life<=0||p.alpha<=0){particles.splice(i,1);continue;}
+                const dx=p.x-player.x,dy=p.y-player.y,d=Math.hypot(dx,dy);
+                if(d>10){
+                    let sa=(Math.atan2(dy,dx)-player.angle+Math.PI*2)%(Math.PI*2);
+                    if(sa>Math.PI)sa-=Math.PI*2;
+                    if(Math.abs(sa)<FOV/1.5){
+                        const sx=RENDER_W/2+(sa/(FOV/2))*(RENDER_W/2);
+                        const sy=hz+(TILE/d*2);
+                        const ps=Math.max(1,(p.size*TILE)/(d*2));
+                        oCtx.globalAlpha=p.alpha;oCtx.fillStyle=p.color;
+                        oCtx.fillRect(sx,sy,ps,ps);oCtx.globalAlpha=1;
                     }
                 }
             }
 
-            // Curse Fog Overlay
-            if(effects.curse.active) {
-                offscreenCtx.fillStyle = 'rgba(5,0,10,0.95)';
-                offscreenCtx.fillRect(0,0,RENDER_WIDTH, RENDER_HEIGHT);
-                offscreenCtx.globalCompositeOperation = 'destination-out';
-                offscreenCtx.beginPath(); offscreenCtx.arc(RENDER_WIDTH/2, horizon + RENDER_HEIGHT*0.05, RENDER_WIDTH/5, 0, Math.PI*2); offscreenCtx.fill();
-                offscreenCtx.globalCompositeOperation = 'source-over';
+            // Curse fog
+            if(FX.curse.active){
+                oCtx.fillStyle='rgba(4,0,8,.96)';
+                oCtx.fillRect(0,0,RENDER_W,RENDER_H);
+                oCtx.globalCompositeOperation='destination-out';
+                oCtx.beginPath();oCtx.arc(RENDER_W/2,hz+RENDER_H*.05,RENDER_W/5,0,Math.PI*2);oCtx.fill();
+                oCtx.globalCompositeOperation='source-over';
             }
 
-            // Draw Hands Overlay
-            if (grabTimer > 0) grabTimer--;
-            const handBob = Math.abs(Math.sin(walkCycle)) * 2;
-            const reach = grabTimer > 0 ? 6 : 0;
-            
-            offscreenCtx.drawImage(textures.handLeft, 10 + reach, RENDER_HEIGHT - 30 + handBob - reach);
-            offscreenCtx.drawImage(textures.handRight, RENDER_WIDTH - 34 - reach, RENDER_HEIGHT - 30 + handBob - reach);
-
-            const mainCtx = ui.mainCanvas.getContext('2d');
-            mainCtx.imageSmoothingEnabled = false;
-            mainCtx.drawImage(offscreenCanvas, 0, 0, ui.mainCanvas.width, ui.mainCanvas.height);
+            // Letterbox blit
+            if(!mainCtx) return;
+            mainCtx.fillStyle='#000';
+            mainCtx.fillRect(0,0,ui.mainCanvas.width,ui.mainCanvas.height);
+            mainCtx.imageSmoothingEnabled=false;
+            const cw=ui.mainCanvas.width, ch=ui.mainCanvas.height;
+            const asp=RENDER_W/RENDER_H;
+            let dw=cw, dh=cw/asp;
+            if(dh>ch){dh=ch;dw=ch*asp;}
+            mainCtx.drawImage(offscreen,(cw-dw)/2,(ch-dh)/2,dw,dh);
         }
 
-        let lastTime=0;
-        function gameLoop(ts) {
+        function gameLoop(){
             if(!gameRunning) return;
-            handleInput(); render();
-            animationFrameId = requestAnimationFrame(gameLoop);
+            handleInput();
+            render();
+            rafId=requestAnimationFrame(gameLoop);
         }
 
-        function startGameSequence() {
-            ui.titleScreen.classList.add('hidden'); ui.gameOverScreen.classList.add('hidden');
+        // ── GAME FLOW ──
+        function startGame(){
+            ui.titleScreen.classList.add('hidden');
+            ui.gameOverScreen.classList.remove('visible');
             ui.gameplayScreen.classList.remove('hidden');
-            ui.onScreenControls.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
-            
-            ui.mainCanvas.width = ui.gameplayScreen.clientWidth; ui.mainCanvas.height = ui.gameplayScreen.clientHeight;
-            
-            // Reset Global State
-            globalScore = 0; timeLeft = INITIAL_TIME;
-            if(auth && !auth.currentUser) signInAnonymously(auth).catch(e=>console.log(e));
+            ui.onScreenControls.style.display=window.innerWidth<=768?'flex':'none';
+            resizeCanvas();
+
+            score=0; timeLeft=INIT_TIME;
+            if(auth&&!auth.currentUser) signInAnonymously(auth).catch(()=>{});
 
             loadLevel(0);
-            
-            ui.transitionTitle.textContent = "LEVEL 1";
-            ui.transitionSubtitle.textContent = LEVEL_DESIGNS[0].name;
-            ui.transitionGoal.textContent = `Collect ${LEVEL_DESIGNS[0].targetCDs} CDs`;
+
+            const d=LEVELS[0];
+            ui.transitionTitle.textContent='LEVEL 1';
+            ui.transitionSubtitle.textContent=d.name;
+            ui.transitionGoal.textContent=`Collect ${d.targetCDs} CDs`;
             ui.levelTransitionOverlay.classList.add('active');
 
-            setTimeout(() => {
+            setTimeout(()=>{
                 ui.levelTransitionOverlay.classList.remove('active');
-                gameRunning = true; 
-                if(animationFrameId) cancelAnimationFrame(animationFrameId);
-                animationFrameId = requestAnimationFrame(gameLoop);
+                gameRunning=true;
+                playMusic(audio.gameplay);
+                if(rafId) cancelAnimationFrame(rafId);
+                rafId=requestAnimationFrame(gameLoop);
 
-                if(gameTimerInterval) clearInterval(gameTimerInterval);
-                gameTimerInterval = setInterval(() => {
-                    if(!effects.freeze.active && !ui.levelTransitionOverlay.classList.contains('active')) {
-                        timeLeft -= (1 * loopMultiplier); 
-                        if(timeLeft <= 0) { timeLeft=0; gameOver(); }
+                clearInterval(timerInterval);
+                timerInterval=setInterval(()=>{
+                    if(!FX.freeze.active&&!ui.levelTransitionOverlay.classList.contains('active')){
+                        timeLeft-=loopMult;
+                        if(timeLeft<=0){timeLeft=0;gameOver();}
                         updateHUD();
                     }
-                }, 1000);
-            }, 1500);
+                },1000);
+            },1600);
         }
 
-        function gameOver() {
-            gameRunning = false; clearInterval(gameTimerInterval); clearAllEffects();
-            ui.gameplayScreen.classList.add('hidden'); ui.onScreenControls.style.display = 'none';
-            ui.gameOverScreen.classList.remove('hidden');
-            ui.finalScoreDisplay.textContent = globalScore;
-            ui.gameOverMessage.textContent = `You reached Level ${currentLevelIndex + 1}!`;
-            
-            ui.initialsForm.classList.remove('hidden');
-            ui.scoreboardSection.classList.add('hidden');
+        function gameOver(){
+            gameRunning=false;
+            clearInterval(timerInterval);
+            clearFX();
+            ui.gameplayScreen.classList.add('hidden');
+            ui.onScreenControls.style.display='none';
+            ui.gameOverScreen.classList.add('visible');
+            ui.finalScoreDisplay.textContent=score;
+            ui.gameOverMessage.textContent=`You reached Level ${lvlIndex+1}`;
+            playMusic(audio.end);
+            ui.initialsForm.style.display='flex';
+            ui.scoreboardSection.classList.remove('visible');
         }
 
-        // --- Firebase Integration ---
-        ui.submitScoreButton.addEventListener('click', async () => {
-            if(!db || !auth) { alert("Scoreboard offline."); return; }
-            let initials = ui.initialsInput.value.trim().toUpperCase().substring(0,3) || "AAA";
-            try {
-                await addDoc(collection(db, `/artifacts/${appId}/public/data/${SCORES_COLLECTION_NAME}`), {
-                    score: globalScore, level: currentLevelIndex+1, playerName: initials, timestamp: serverTimestamp()
-                });
-                ui.initialsForm.classList.add('hidden'); ui.scoreboardSection.classList.remove('hidden');
-                
-                // Fetch Scores
-                ui.scoreboardList.innerHTML = "<li>Loading...</li>";
-                const q = query(collection(db, `/artifacts/${appId}/public/data/${SCORES_COLLECTION_NAME}`), orderBy("score", "desc"), limit(5));
-                const snaps = await getDocs(q);
-                ui.scoreboardList.innerHTML = "";
-                if(snaps.empty) ui.scoreboardList.innerHTML = "<li>No scores yet.</li>";
-                else snaps.forEach((d, i) => {
-                    const data = d.data();
-                    const li = document.createElement("li");
-                    li.innerHTML = `${data.playerName} (Lvl ${data.level}): <span class="score-value">${data.score}</span>`;
+        // ── FIREBASE ──
+        ui.submitScoreButton.addEventListener('click',async()=>{
+            if(!db||!auth){showScoreboard(null);return;}
+            const initials=(ui.initialsInput.value.trim().toUpperCase().substring(0,3)||'AAA');
+            try{
+                await addDoc(collection(db,`/artifacts/${appId}/public/data/${SCORES_COLLECTION}`),
+                    {score,level:lvlIndex+1,playerName:initials,timestamp:serverTimestamp()});
+            }catch(e){console.error(e);}
+            showScoreboard(initials);
+        });
+
+        async function showScoreboard(initials){
+            ui.initialsForm.style.display='none';
+            ui.scoreboardSection.classList.add('visible');
+            ui.scoreboardList.innerHTML='<li style="color:#606080">Loading...</li>';
+            if(!db){ui.scoreboardList.innerHTML='<li style="color:#606080">Offline</li>';return;}
+            try{
+                const q=query(collection(db,`/artifacts/${appId}/public/data/${SCORES_COLLECTION}`),orderBy('score','desc'),limit(5));
+                const snap=await getDocs(q);
+                ui.scoreboardList.innerHTML='';
+                snap.forEach(d=>{
+                    const v=d.data();
+                    const li=document.createElement('li');
+                    li.innerHTML=`<span>${v.playerName} <span style="color:#606080">Lv${v.level}</span></span><span class="score-value">${v.score}</span>`;
                     ui.scoreboardList.appendChild(li);
                 });
-            } catch(e) { console.error(e); }
+                if(snap.empty) ui.scoreboardList.innerHTML='<li style="color:#606080">No scores yet.</li>';
+            }catch(e){console.error(e);}
+        }
+
+        ui.restartButton.addEventListener('click',()=>{
+            ui.gameOverScreen.classList.remove('visible');
+            ui.titleScreen.classList.remove('hidden');
+            playMusic(audio.menu);
         });
 
-        ui.restartButton.addEventListener('click', () => {
-            ui.gameOverScreen.classList.add('hidden'); ui.titleScreen.classList.remove('hidden');
-        });
-
-        window.addEventListener('resize', () => {
-            if (!ui.gameplayScreen.classList.contains('hidden')) {
-                ui.mainCanvas.width = ui.gameplayScreen.clientWidth; ui.mainCanvas.height = ui.gameplayScreen.clientHeight;
+        window.addEventListener('resize',()=>{
+            if(!ui.gameplayScreen.classList.contains('hidden')){
+                resizeCanvas();
                 if(!gameRunning) render();
             }
         });
 
-        // Initialize
-        setupControls(); generateSprites(); drawLogo(); 
+        // ── INIT ──
+        setupInput();
+        buildSprites();
+
+        document.body.addEventListener('click',()=>{
+            if(!gameRunning&&!ui.gameOverScreen.classList.contains('visible'))
+                playMusic(audio.menu);
+        },{once:true});
     </script>
 </body>
 </html>
-```eof
