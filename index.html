@@ -304,32 +304,132 @@
         #scoreboard li .score-value { color: #FFFF00; }
 
         /* ══════════════════════════════════
+           MILLO LETTER COLLECT OVERLAY
+        ══════════════════════════════════ */
+        #milloLetterOverlay {
+            position: fixed; inset: 0; z-index: 200;
+            background: rgba(0,0,0,0.93);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.25s ease;
+            text-align: center; gap: clamp(12px, 3vh, 24px);
+        }
+        #milloLetterOverlay.active { opacity: 1; pointer-events: all; }
+        .mlo-label {
+            font-size: clamp(9px, 2vw, 13px); color: #FF69B4; letter-spacing: 6px;
+            text-shadow: 0 0 10px #FF1493;
+            animation: mloIn 0.35s ease-out both;
+        }
+        .mlo-big-char {
+            font-size: clamp(90px, 22vw, 160px); line-height: 1;
+            text-shadow: 0 0 40px currentColor, 0 0 80px currentColor;
+            animation: mloBigPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        @keyframes mloBigPop {
+            0%   { transform: scale(0) rotate(-25deg); opacity: 0; }
+            65%  { transform: scale(1.3) rotate(6deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0); opacity: 1; }
+        }
+        @keyframes mloIn {
+            from { transform: translateY(-14px); opacity: 0; }
+            to   { transform: translateY(0); opacity: 1; }
+        }
+        .mlo-progress-row {
+            display: flex; gap: clamp(8px, 2.5vw, 18px);
+            animation: mloIn 0.35s 0.2s ease-out both;
+        }
+        .mlo-char-box {
+            font-size: clamp(22px, 5.5vw, 46px);
+            width: clamp(44px, 9vw, 72px); height: clamp(44px, 9vw, 72px);
+            display: flex; align-items: center; justify-content: center;
+            border: 2px solid; border-radius: 6px;
+        }
+        .mlo-char-box.found {
+            color: var(--mc); border-color: var(--mc);
+            box-shadow: 0 0 14px var(--mc), inset 0 0 6px rgba(0,0,0,0.4);
+            text-shadow: 0 0 10px var(--mc);
+        }
+        .mlo-char-box.new-find {
+            animation: mloNewFind 0.7s ease-out;
+        }
+        @keyframes mloNewFind {
+            0%   { transform: scale(1); }
+            35%  { transform: scale(1.5); box-shadow: 0 0 60px var(--mc), 0 0 120px var(--mc); }
+            100% { transform: scale(1); }
+        }
+        .mlo-char-box.missing { color: #1c1c2e; border-color: #1c1c2e; }
+        .mlo-count {
+            font-size: clamp(8px, 1.6vw, 10px); color: #505070; letter-spacing: 3px;
+            animation: mloIn 0.35s 0.35s ease-out both;
+        }
+        .mlo-dismiss {
+            font-size: 7px; color: #252535; letter-spacing: 2px;
+            animation: mloIn 0.35s 0.5s ease-out both;
+        }
+
+        /* ══════════════════════════════════
            MILLO COMPLETE OVERLAY
         ══════════════════════════════════ */
         #milloCompleteOverlay {
             position: fixed; inset: 0; z-index: 300;
-            background: rgba(0,0,0,0.97);
+            background: #000;
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
             opacity: 0; transition: opacity 0.5s ease; pointer-events: none;
-            text-align: center; gap: 18px;
+            text-align: center; gap: clamp(10px, 3vh, 22px); overflow: hidden;
         }
         #milloCompleteOverlay.active { opacity: 1; pointer-events: all; }
-        .mcc-title {
-            font-size: clamp(40px, 10vw, 72px); color: #FF1493;
-            text-shadow: 0 0 30px #FF1493, 0 0 60px #FF69B4;
-            animation: milloRainbow 1.5s linear infinite;
-            letter-spacing: 4px;
+        .mcc-bg-flash {
+            position: absolute; inset: 0; background: #fff; pointer-events: none;
+            animation: mccFlash 0.5s ease-out forwards;
         }
-        .mcc-sub { font-size: clamp(14px, 3.5vw, 22px); color: #FFFF00; text-shadow: 0 0 20px #FFD700; }
-        .mcc-desc { font-size: 9px; color: #A0A0C0; line-height: 2; }
-        .mcc-chars { display: flex; gap: 10px; margin-top: 8px; }
-        .mcc-char { font-size: clamp(18px, 4vw, 28px); animation: milloRainbow 2s linear infinite; }
-        .mcc-char:nth-child(1) { animation-delay: 0s; }
-        .mcc-char:nth-child(2) { animation-delay: 0.4s; }
-        .mcc-char:nth-child(3) { animation-delay: 0.8s; }
-        .mcc-char:nth-child(4) { animation-delay: 1.2s; }
-        .mcc-char:nth-child(5) { animation-delay: 1.6s; }
+        @keyframes mccFlash { from { opacity: 1; } to { opacity: 0; } }
+        .mcc-chars { display: flex; gap: clamp(6px, 2.5vw, 18px); z-index: 1; }
+        .mcc-char {
+            font-size: clamp(38px, 9vw, 76px);
+            display: inline-block;
+            text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+            animation: mccCharIn 0.55s cubic-bezier(0.34,1.56,0.64,1) both, milloRainbow 1.5s linear infinite;
+        }
+        .mcc-char:nth-child(1) { animation-delay: 0.15s, 0s; }
+        .mcc-char:nth-child(2) { animation-delay: 0.3s,  0.3s; }
+        .mcc-char:nth-child(3) { animation-delay: 0.45s, 0.6s; }
+        .mcc-char:nth-child(4) { animation-delay: 0.6s,  0.9s; }
+        .mcc-char:nth-child(5) { animation-delay: 0.75s, 1.2s; }
+        @keyframes mccCharIn {
+            0%   { transform: scale(0) rotate(-30deg) translateY(60px); opacity: 0; }
+            65%  { transform: scale(1.35) rotate(6deg) translateY(-8px); opacity: 1; }
+            100% { transform: scale(1) rotate(0) translateY(0); opacity: 1; }
+        }
+        .mcc-title {
+            font-size: clamp(38px, 9vw, 70px); color: #FF1493;
+            text-shadow: 0 0 30px #FF1493, 0 0 60px #FF69B4, 0 0 100px #FF1493;
+            animation: milloRainbow 0.9s linear infinite, mccFlyIn 0.6s 1.1s ease-out both;
+            letter-spacing: 4px; z-index: 1;
+        }
+        .mcc-sub {
+            font-size: clamp(14px, 3.5vw, 26px); color: #FFFF00;
+            text-shadow: 0 0 20px #FFD700, 0 0 40px #FF8C00;
+            animation: mccFlyIn 0.6s 1.4s ease-out both; z-index: 1;
+        }
+        .mcc-desc {
+            font-size: clamp(7px, 1.6vw, 10px); color: #A0A0C0; line-height: 2.3;
+            animation: mccFlyIn 0.6s 1.7s ease-out both; z-index: 1;
+        }
+        @keyframes mccFlyIn {
+            from { transform: scale(2.2) translateY(-24px); opacity: 0; }
+            to   { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .mcc-star {
+            position: absolute; width: 4px; height: 4px; border-radius: 50%;
+            animation: mccStarShoot var(--dur) var(--delay) linear infinite;
+        }
+        @keyframes mccStarShoot {
+            0%   { transform: translate(var(--sx), var(--sy)) scale(0); opacity: 1; }
+            80%  { opacity: 1; }
+            100% { transform: translate(var(--ex), var(--ey)) scale(2.5); opacity: 0; }
+        }
 
         /* ══════════════════════════════════
            MOBILE CONTROLS
@@ -490,6 +590,15 @@
     <!-- Mobile map toggle -->
     <button id="mapToggleBtn" class="hidden">MAP</button>
 
+    <!-- MILLO letter collect overlay -->
+    <div id="milloLetterOverlay">
+        <div class="mlo-label">MILLO LETTER FOUND!</div>
+        <div class="mlo-big-char" id="mloBigChar">M</div>
+        <div class="mlo-progress-row" id="mloProgressRow"></div>
+        <div class="mlo-count" id="mloCount">1 / 5 LETTERS</div>
+        <div class="mlo-dismiss">AUTO-DISMISSES IN 5s</div>
+    </div>
+
     <!-- MILLO complete overlay -->
     <div id="milloCompleteOverlay">
         <div class="mcc-chars">
@@ -499,9 +608,9 @@
             <span class="mcc-char">L</span>
             <span class="mcc-char">O</span>
         </div>
-        <div class="mcc-title">SECRET</div>
-        <div class="mcc-sub">UNLOCKED</div>
-        <div class="mcc-desc">RAINBOW MODE ACTIVATED<br>SCORE x2 FOREVER</div>
+        <div class="mcc-title">SECRET UNLOCKED</div>
+        <div class="mcc-sub">★ MILLO MODE ★</div>
+        <div class="mcc-desc">RAINBOW VISION ACTIVATED<br>SCORE ×2 FOREVER</div>
     </div>
 
     <!-- Mobile Controls -->
@@ -578,6 +687,10 @@
             milloTitleBadge:         document.getElementById('milloTitleBadge'),
             milloGoSection:          document.getElementById('milloGoSection'),
             milloProgressRow:        document.getElementById('milloProgressRow'),
+            milloLetterOverlay:      document.getElementById('milloLetterOverlay'),
+            mloBigChar:              document.getElementById('mloBigChar'),
+            mloProgressRow:          document.getElementById('mloProgressRow'),
+            mloCount:                document.getElementById('mloCount'),
             milloCompleteOverlay:    document.getElementById('milloCompleteOverlay'),
         };
 
@@ -773,20 +886,74 @@
             showFloatingScore(`★ ${char} ★`, color, 0);
             playSound(audio.goldenCd);
             spawnParticles(item.x, item.y, color + 'CC');
-            // Check for full unlock
+            showMilloLetterOverlay(idx);
             if (milloCollected.every(Boolean) && !milloUnlocked) {
                 milloUnlocked = true;
                 saveMilloState();
-                setTimeout(showMilloComplete, 800);
+                setTimeout(showMilloComplete, 5500); // after letter overlay closes
             }
         }
 
+        function showMilloLetterOverlay(idx) {
+            const color = MILLO_COLORS[idx];
+            // Animate big char — swap node to restart animation
+            const oldBig = ui.mloBigChar;
+            const newBig = oldBig.cloneNode(false);
+            newBig.textContent = MILLO_CHARS[idx];
+            newBig.style.color = color;
+            oldBig.parentNode.replaceChild(newBig, oldBig);
+            ui.mloBigChar = newBig;
+
+            // Build progress badges
+            ui.mloProgressRow.innerHTML = '';
+            MILLO_CHARS.forEach((ch, i) => {
+                const box = document.createElement('div');
+                box.className = 'mlo-char-box' +
+                    (milloCollected[i] ? ' found' : ' missing') +
+                    (i === idx ? ' new-find' : '');
+                box.style.setProperty('--mc', MILLO_COLORS[i]);
+                box.textContent = ch;
+                ui.mloProgressRow.appendChild(box);
+            });
+
+            const found = milloCollected.filter(Boolean).length;
+            ui.mloCount.textContent = `${found} / 5 LETTERS`;
+
+            ui.milloLetterOverlay.classList.add('active');
+            clearTimeout(ui.milloLetterOverlay._hideTimer);
+            ui.milloLetterOverlay._hideTimer = setTimeout(() =>
+                ui.milloLetterOverlay.classList.remove('active'), 5000);
+        }
+
         function showMilloComplete() {
-            ui.milloCompleteOverlay.classList.add('active');
+            const ov = ui.milloCompleteOverlay;
+            // White flash
+            const flash = document.createElement('div');
+            flash.className = 'mcc-bg-flash';
+            ov.insertBefore(flash, ov.firstChild);
+            setTimeout(() => flash.remove(), 600);
+            // Shooting stars
+            const starColors = ['#FF1493','#00E5FF','#AAFF00','#FFD700','#FF7700','#fff'];
+            for (let i = 0; i < 30; i++) {
+                const s = document.createElement('div');
+                s.className = 'mcc-star';
+                s.style.background = starColors[i % starColors.length];
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 250 + Math.random() * 500;
+                s.style.setProperty('--sx', `${Math.random() * 100}vw`);
+                s.style.setProperty('--sy', `${Math.random() * 100}vh`);
+                s.style.setProperty('--ex', `${Math.cos(angle) * dist}px`);
+                s.style.setProperty('--ey', `${Math.sin(angle) * dist}px`);
+                s.style.setProperty('--dur',   `${0.7 + Math.random() * 1.8}s`);
+                s.style.setProperty('--delay', `${Math.random() * 2.5}s`);
+                ov.appendChild(s);
+            }
+            ov.classList.add('active');
             ui.milloTitleBadge.classList.remove('hidden');
             setTimeout(() => {
-                ui.milloCompleteOverlay.classList.remove('active');
-            }, 5000);
+                ov.classList.remove('active');
+                ov.querySelectorAll('.mcc-star, .mcc-bg-flash').forEach(el => el.remove());
+            }, 7000);
         }
 
         // Update MILLO progress on game over screen
@@ -1308,7 +1475,7 @@
                 rafId = requestAnimationFrame(gameLoop);
                 clearInterval(timerInterval);
                 timerInterval = setInterval(()=>{
-                    if(!FX.freeze.active&&!ui.levelTransitionOverlay.classList.contains('active')){
+                    if(!FX.freeze.active&&!ui.levelTransitionOverlay.classList.contains('active')&&!ui.milloLetterOverlay.classList.contains('active')){
                         timeLeft -= loopMult;
                         if(timeLeft<=0){timeLeft=0;gameOver();}
                         updateHUD();
@@ -1320,6 +1487,8 @@
         function gameOver(){
             gameRunning = false;
             clearInterval(timerInterval); clearFX();
+            clearTimeout(ui.milloLetterOverlay._hideTimer);
+            ui.milloLetterOverlay.classList.remove('active');
             if (!milloUnlocked) ui.mainCanvas.style.filter = '';
             ui.gameplayScreen.classList.add('hidden');
             ui.onScreenControls.style.display='none';
