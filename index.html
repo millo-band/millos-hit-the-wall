@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Millo's "Hit the Wall"</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        .hidden { display: none !important; }
+        body {
+            font-family: 'Press Start 2P', monospace;
+            background: #000; color: #E0E0FF;
+            overflow: hidden; user-select: none;
+        }
+
+        /* ── CRT ── */
+        #crtOverlay {
+            position: fixed; inset: 0; z-index: 999; pointer-events: none;
+            background:
+                repeating-linear-gradient(0deg, transparent 0px, transparent 3px,
+                    rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px),
+                radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.65) 100%);
+        }
+        #gameContainer { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
+
+        /* ══════════════════════════════════
+           TITLE SCREEN
+        ══════════════════════════════════ */
+        #titleScreen {
+            position: absolute; inset: 0; z-index: 20; background: #000;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            overflow: hidden; cursor: pointer;
+        }
+        #titleScreen::before {
+            content: ''; position: absolute; inset: 0;
+            background-image:
+                linear-gradient(rgba(255,20,147,0.12) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,20,147,0.12) 1px, transparent 1px);
+            background-size: 48px 48px;
+            animation: gridScroll 2.5s linear infinite;
+            mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.6) 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.6) 100%);
+        }
+        @keyframes gridScroll { from { background-position: 0 0; } to { background-position: 0 48px; } }
+        #titleScreen::after {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 35%;
+            background: linear-gradient(to bottom, #000 0%, transparent 100%);
+            pointer-events: none;
+        }
+        .title-inner {
+            position: relative; z-index: 2;
+            display: flex; flex-direction: column; align-items: center; gap: 0;
+            text-align: center; padding: 0 20px;
+        }
+        .title-presented-by {
+            font-size: 9px; color: #FF69B4; letter-spacing: 5px;
+            text-transform: uppercase; text-shadow: 0 0 12px #FF1493;
+            margin-bottom: 16px; opacity: 0.9;
+        }
+        .title-hit {
+            font-size: clamp(36px, 8vw, 64px); color: #FFF; line-height: 1;
+            text-shadow: 3px 3px 0 #C2185B, 0 0 20px rgba(255,20,147,0.8), 0 0 50px rgba(255,20,147,0.4);
+            letter-spacing: 4px;
+        }
+        .title-the-wall {
+            font-size: clamp(52px, 13vw, 100px); color: #FFFF00; line-height: 1;
+            margin-bottom: 6px;
+            text-shadow: 4px 4px 0 #C8800D, 0 0 25px rgba(255,220,0,0.9), 0 0 60px rgba(255,140,0,0.5);
+            letter-spacing: 2px;
+        }
+        .title-divider {
+            width: 280px; max-width: 90vw; height: 2px;
+            background: linear-gradient(90deg, transparent, #FF1493, #FFFF00, #FF1493, transparent);
+            margin: 18px 0;
+        }
+        #pressStartPrompt {
+            font-size: clamp(11px, 2vw, 14px); color: #FFFF00; letter-spacing: 3px;
+            text-shadow: 0 0 12px #FFD700, 0 0 25px #FF8C00;
+            animation: blinkPrompt 1.1s step-start infinite; margin-bottom: 14px;
+        }
+        @keyframes blinkPrompt { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        #milloTitleBadge {
+            font-size: 8px; color: #FF1493; letter-spacing: 3px;
+            text-shadow: 0 0 10px #FF1493, 0 0 20px #FF69B4;
+            animation: milloRainbow 3s linear infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes milloRainbow { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+        .title-controls {
+            font-size: 7px; color: #505070; letter-spacing: 1px; line-height: 2;
+        }
+        .title-controls span { color: #8080A0; }
+
+        /* ══════════════════════════════════
+           GAME CANVAS
+        ══════════════════════════════════ */
+        #gameCanvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; image-rendering: pixelated; image-rendering: crisp-edges;
+            display: block; z-index: 1;
+        }
+        #gameplayScreen { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 2; }
+
+        /* ══════════════════════════════════
+           HUD
+        ══════════════════════════════════ */
+        #gameUiContainer { width: 100%; position: fixed; top: 0; left: 0; z-index: 10; pointer-events: none; }
+        .top-hud-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 100%; padding: 6px 14px;
+            background: rgba(0,0,0,0.88);
+            border-bottom: 1px solid rgba(255,20,147,0.35);
+            font-size: 10px; color: #E0E0FF; gap: 8px;
+        }
+        .hud-left { flex: 1; }
+        .hud-lvl { color: #FF69B4; font-size: 11px; }
+        .hud-lvl-speed { color: #404060; font-size: 7px; margin-top: 2px; }
+        .hud-center { display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; }
+        .hud-time-value { font-size: 14px; color: #FFF; text-align: center; transition: color 0.3s; }
+        #timerProgressBarContainer { width: 90px; height: 6px; background: #111; border: 1px solid #333; overflow: hidden; }
+        #timerProgressBar { height: 100%; background: #2ECC40; transition: width 0.25s linear, background-color 0.5s linear; }
+        @keyframes timerWarn {
+            0%, 100% { transform: scale(1); text-shadow: 0 0 10px #FF4136; }
+            50%       { transform: scale(1.18); text-shadow: 0 0 22px #FF0000, 0 0 40px #FF0000; }
+        }
+        .hud-center.critical .hud-time-value { color: #FF4136; animation: timerWarn 0.55s ease-in-out infinite; }
+        .hud-center.critical #timerProgressBarContainer { border-color: rgba(255,65,54,0.6); box-shadow: 0 0 6px rgba(255,65,54,0.4); }
+        .hud-right { flex: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+        .hud-cd-count { font-size: 13px; color: #FFFF00; text-align: right; }
+        .cd-dots-row { display: flex; gap: 3px; flex-wrap: wrap; justify-content: flex-end; max-width: 110px; }
+        .cd-dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid rgba(255,255,0,0.3); background: transparent; transition: background 0.15s, box-shadow 0.15s; }
+        .cd-dot.filled { background: #FFFF00; border-color: #FFFF00; box-shadow: 0 0 5px #FFFF00; }
+
+        /* Effects bar */
+        #activeEffectsBar {
+            display: flex; gap: 5px; flex-wrap: wrap; justify-content: center;
+            background: rgba(0,0,0,0.75); border-bottom: 1px solid rgba(255,20,147,0.15);
+            overflow: hidden; max-height: 0; transition: max-height 0.2s ease, padding 0.2s ease;
+        }
+        #activeEffectsBar.has-effects { max-height: 40px; padding: 5px 8px; }
+        .effect-badge {
+            position: relative; overflow: hidden; padding: 3px 8px 6px;
+            font-size: 7px; color: #000; font-weight: bold; text-transform: uppercase;
+            animation: popIn 0.15s ease-out; min-width: 60px; text-align: center;
+            display: flex; flex-direction: column; align-items: center; gap: 1px;
+        }
+        .fx-name { font-size: 7px; }
+        .fx-secs { font-size: 6px; opacity: 0.7; }
+        .fx-bar { position: absolute; bottom: 0; left: 0; height: 3px; background: rgba(0,0,0,0.45); transition: width 0.9s linear; }
+        @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* ══════════════════════════════════
+           CROSSHAIR
+        ══════════════════════════════════ */
+        #crosshair {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            z-index: 9; pointer-events: none; width: 26px; height: 26px;
+        }
+        .ch-h { position: absolute; width: 22px; height: 2px; background: rgba(255,255,255,0.38); top: 50%; left: 50%; transform: translate(-50%,-50%); transition: background 0.2s, box-shadow 0.2s; }
+        .ch-v { position: absolute; width: 2px; height: 22px; background: rgba(255,255,255,0.38); top: 50%; left: 50%; transform: translate(-50%,-50%); transition: background 0.2s, box-shadow 0.2s; }
+        .ch-dot { position: absolute; width: 4px; height: 4px; background: rgba(255,255,255,0.55); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%,-50%); transition: all 0.2s; }
+        #crosshair.near-cd .ch-h, #crosshair.near-cd .ch-v { background: rgba(255,220,0,0.75); box-shadow: 0 0 6px rgba(255,220,0,0.5); }
+        #crosshair.near-cd .ch-dot { background: #FFD700; box-shadow: 0 0 10px #FFD700; animation: chPulse 0.75s ease-in-out infinite; }
+        @keyframes chPulse { 0%, 100% { transform: translate(-50%,-50%) scale(1); } 50% { transform: translate(-50%,-50%) scale(2); } }
+
+        /* ══════════════════════════════════
+           MINIMAP
+        ══════════════════════════════════ */
+        #minimapWrapper {
+            position: fixed; top: 52px; right: 8px; z-index: 10; pointer-events: none;
+            border: 1px solid rgba(255,20,147,0.45); box-shadow: 0 0 8px rgba(255,20,147,0.15);
+            background: rgba(0,0,0,0.8);
+        }
+        .minimap-label { font-family: 'Press Start 2P', monospace; font-size: 5px; color: rgba(255,105,180,0.65); text-align: center; padding: 2px 4px 1px; letter-spacing: 3px; background: rgba(0,0,0,0.9); }
+        #minimapCanvas { display: block; }
+        .minimap-hint { font-family: 'Press Start 2P', monospace; font-size: 5px; color: rgba(80,80,100,0.7); text-align: center; padding: 1px 0; letter-spacing: 1px; background: rgba(0,0,0,0.9); }
+
+        /* ══════════════════════════════════
+           FLOATING SCORE
+        ══════════════════════════════════ */
+        .score-float {
+            position: fixed; bottom: 44%; left: calc(50% + var(--fx-offset, 0px));
+            transform: translateX(-50%);
+            font-family: 'Press Start 2P', monospace; font-size: clamp(10px, 2.5vw, 14px);
+            pointer-events: none; z-index: 25; white-space: nowrap;
+            text-shadow: 2px 2px 0 #000, 0 0 10px currentColor;
+            animation: scoreFloat 1.5s ease-out forwards;
+        }
+        @keyframes scoreFloat {
+            0%   { bottom: 44%; opacity: 1; transform: translateX(-50%) scale(1.4); }
+            25%  { transform: translateX(-50%) scale(1.05); }
+            100% { bottom: 66%; opacity: 0; transform: translateX(-50%) scale(0.85); }
+        }
+
+        /* ══════════════════════════════════
+           MESSAGE TOAST
+        ══════════════════════════════════ */
+        #messageDisplay {
+            position: fixed; bottom: 85px; left: 50%; transform: translateX(-50%);
+            z-index: 15; font-size: 10px; color: #FFFF55;
+            text-shadow: 0 0 8px #FFD700, 1px 1px 0 #000;
+            background: rgba(0,0,0,0.85); padding: 7px 16px;
+            border: 1px solid rgba(255,20,147,0.5);
+            pointer-events: none; white-space: nowrap;
+            opacity: 0; transition: opacity 0.15s ease;
+        }
+        #messageDisplay.visible { opacity: 1; }
+
+        /* ══════════════════════════════════
+           LEVEL TRANSITION
+        ══════════════════════════════════ */
+        #levelTransitionOverlay {
+            position: absolute; inset: 0; z-index: 50;
+            background: rgba(0,0,0,0.95);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.35s ease;
+        }
+        #levelTransitionOverlay.active { opacity: 1; pointer-events: all; }
+        .trans-level-num {
+            font-size: clamp(64px, 15vw, 110px); line-height: 1; color: #FF1493;
+            text-shadow: 4px 4px 0 #8B0057, 0 0 40px rgba(255,20,147,0.6);
+            animation: transIn 0.4s ease-out;
+        }
+        .trans-level-name {
+            font-size: clamp(14px, 3vw, 22px); color: #FFFF00;
+            text-shadow: 2px 2px 0 #B8860B, 0 0 20px rgba(255,220,0,0.5);
+            margin-top: 8px; animation: transIn 0.4s 0.1s ease-out both;
+        }
+        .trans-goal {
+            font-size: 10px; color: #A0A0C0; margin-top: 20px;
+            animation: transIn 0.4s 0.2s ease-out both;
+        }
+        .trans-divider { width: 200px; height: 2px; background: linear-gradient(90deg, transparent, #FF1493, transparent); margin: 14px 0; }
+        @keyframes transIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* ══════════════════════════════════
+           GAME OVER SCREEN
+        ══════════════════════════════════ */
+        #gameOverScreen {
+            position: absolute; inset: 0; z-index: 20; background: rgba(0,0,0,0.97);
+            display: none; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center; padding: 30px 20px;
+        }
+        #gameOverScreen.visible { display: flex; }
+        .go-header {
+            font-size: clamp(28px, 6vw, 46px); color: #FF1493;
+            text-shadow: 3px 3px 0 #8B0057, 0 0 30px rgba(255,20,147,0.7);
+            margin-bottom: 6px; animation: transIn 0.4s ease-out;
+        }
+        .go-sub { font-size: 9px; color: #505070; margin-bottom: 20px; animation: transIn 0.4s 0.05s ease-out both; }
+        .go-score-label { font-size: 9px; color: #606080; margin-bottom: 6px; }
+        #finalScoreDisplay {
+            font-size: clamp(42px, 10vw, 64px); color: #FFFF00;
+            text-shadow: 3px 3px 0 #B8860B, 0 0 30px rgba(255,220,0,0.6);
+            margin-bottom: 6px; animation: scoreCount 0.5s ease-out;
+        }
+        @keyframes scoreCount { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        #gameOverMessage { font-size: 9px; color: #8080A0; margin-bottom: 16px; }
+        .go-divider { width: 260px; max-width: 90vw; height: 1px; background: linear-gradient(90deg, transparent, #FF1493, transparent); margin: 10px 0; }
+
+        /* MILLO progress on game over */
+        #milloGoSection { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 8px 0; }
+        .millo-go-label { font-size: 6px; color: #303050; letter-spacing: 3px; }
+        .millo-progress-row { display: flex; gap: 6px; }
+        .millo-letter-badge {
+            font-size: 11px; width: 26px; height: 26px;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid #1a1a2a; color: #1a1a2a; border-radius: 3px;
+            transition: all 0.4s;
+        }
+        .millo-letter-badge.found {
+            border-color: var(--mc); color: var(--mc);
+            box-shadow: 0 0 8px var(--mc); text-shadow: 0 0 6px var(--mc);
+        }
+
+        #initialsForm { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .go-initials-label { font-size: 9px; color: #A0A0C0; }
+        #initialsInput {
+            font-family: 'Press Start 2P', monospace; font-size: 20px; width: 110px; padding: 8px;
+            text-align: center; background: #080810; border: 2px solid #FF1493;
+            color: #FFFF00; text-transform: uppercase; outline: none;
+        }
+        #initialsInput:focus { box-shadow: 0 0 12px rgba(255,20,147,0.5); }
+        .pixel-button {
+            font-family: 'Press Start 2P', monospace; font-size: 10px; padding: 10px 20px;
+            background: #FF1493; color: #000; border: none; cursor: pointer;
+            box-shadow: 3px 3px 0 #8B0057; transition: all 0.05s; text-transform: uppercase;
+        }
+        .pixel-button:hover { background: #FF69B4; }
+        .pixel-button:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 #8B0057; }
+        .pixel-button.secondary { background: #1a1a30; color: #E0E0FF; border: 1px solid #404060; box-shadow: 3px 3px 0 #101020; }
+        .pixel-button.secondary:hover { background: #252540; }
+        #scoreboardSection { display: none; flex-direction: column; align-items: center; width: 100%; }
+        #scoreboardSection.visible { display: flex; }
+        #scoreboard { margin: 10px 0; padding: 12px 16px; background: #05050f; border: 1px solid #2a2a4a; width: 100%; max-width: 340px; }
+        #scoreboard h3 { font-size: 10px; color: #FF1493; margin-bottom: 10px; text-align: center; }
+        #scoreboard ol { list-style-type: none; padding: 0; }
+        #scoreboard li { font-size: 9px; color: #C0C0E0; padding: 4px 0; border-bottom: 1px solid #1a1a2a; display: flex; justify-content: space-between; }
+        #scoreboard li:last-child { border-bottom: none; }
+        #scoreboard li .score-value { color: #FFFF00; }
+
+        /* ══════════════════════════════════
+           MILLO COMPLETE OVERLAY
+        ══════════════════════════════════ */
+        #milloCompleteOverlay {
+            position: fixed; inset: 0; z-index: 300;
+            background: rgba(0,0,0,0.97);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.5s ease; pointer-events: none;
+            text-align: center; gap: 18px;
+        }
+        #milloCompleteOverlay.active { opacity: 1; pointer-events: all; }
+        .mcc-title {
+            font-size: clamp(40px, 10vw, 72px); color: #FF1493;
+            text-shadow: 0 0 30px #FF1493, 0 0 60px #FF69B4;
+            animation: milloRainbow 1.5s linear infinite;
+            letter-spacing: 4px;
+        }
+        .mcc-sub { font-size: clamp(14px, 3.5vw, 22px); color: #FFFF00; text-shadow: 0 0 20px #FFD700; }
+        .mcc-desc { font-size: 9px; color: #A0A0C0; line-height: 2; }
+        .mcc-chars { display: flex; gap: 10px; margin-top: 8px; }
+        .mcc-char { font-size: clamp(18px, 4vw, 28px); animation: milloRainbow 2s linear infinite; }
+        .mcc-char:nth-child(1) { animation-delay: 0s; }
+        .mcc-char:nth-child(2) { animation-delay: 0.4s; }
+        .mcc-char:nth-child(3) { animation-delay: 0.8s; }
+        .mcc-char:nth-child(4) { animation-delay: 1.2s; }
+        .mcc-char:nth-child(5) { animation-delay: 1.6s; }
+
+        /* ══════════════════════════════════
+           MOBILE CONTROLS
+        ══════════════════════════════════ */
+        #onScreenControls {
+            width: 100%; position: fixed; bottom: 0; left: 0;
+            z-index: 10; padding: 10px 14px; display: none;
+            justify-content: space-between; align-items: flex-end; pointer-events: none;
+        }
+        .control-cluster {
+            display: flex; pointer-events: auto; background: rgba(0,0,0,0.5);
+            padding: 8px; border-radius: 8px; gap: 6px; border: 1px solid rgba(255,20,147,0.2);
+        }
+        #leftControls { flex-direction: column; gap: 6px; }
+        .dpad-row { display: flex; gap: 6px; }
+        .dpad-spacer { width: 60px; height: 60px; }
+        #rightControls { flex-direction: column; gap: 6px; align-items: center; justify-content: flex-end; }
+        .control-button {
+            width: 60px; height: 60px; background: rgba(255,20,147,0.15);
+            border: 1.5px solid rgba(255,20,147,0.4); color: #FF69B4; font-size: 24px;
+            display: flex; align-items: center; justify-content: center;
+            user-select: none; touch-action: manipulation; border-radius: 8px; cursor: pointer;
+            -webkit-tap-highlight-color: transparent; transition: background 0.06s, border-color 0.06s, transform 0.06s;
+        }
+        .control-button:active, .control-button.active {
+            background: rgba(255,20,147,0.45); border-color: rgba(255,20,147,0.85);
+            transform: scale(0.94); box-shadow: 0 0 12px rgba(255,20,147,0.35);
+        }
+        #mapToggleBtn {
+            position: fixed; top: 52px; right: 8px; z-index: 11; pointer-events: auto; display: none;
+            background: rgba(0,0,0,0.7); border: 1px solid rgba(255,20,147,0.4); color: #FF69B4;
+            font-family: 'Press Start 2P', monospace; font-size: 7px; padding: 4px 6px;
+            cursor: pointer; -webkit-tap-highlight-color: transparent; letter-spacing: 1px;
+        }
+
+        @media (max-width: 600px) {
+            .title-controls { display: none; }
+            .top-hud-bar { font-size: 9px; padding: 5px 10px; }
+            #timerProgressBarContainer { width: 60px; }
+            .hud-lvl-speed { display: none; }
+            #minimapWrapper { transform: scale(0.72); transform-origin: top right; top: 48px; }
+            .cd-dots-row { max-width: 70px; }
+        }
+    </style>
+</head>
+<body>
+    <audio id="menuMusic"          loop src="menu_music.mp3"></audio>
+    <audio id="gameplayMusic"      loop src="millo_theme.mp3"></audio>
+    <audio id="endMenuMusic"       loop src="end-menu-music.mp3"></audio>
+    <audio id="cdPickupSound"           src="cd.mp3"></audio>
+    <audio id="goldenCdPickupSound"     src="golden-cd.mp3"></audio>
+    <audio id="timeFreezeSound"         src="time_freeze.mp3"></audio>
+    <audio id="pathfinderSound"         src="pathfinder.mp3"></audio>
+    <audio id="cursedIdolSound"         src="cursed_idol.mp3"></audio>
+    <audio id="gooPuddleSound"          src="goo_puddle.mp3"></audio>
+
+    <div id="crtOverlay"></div>
+
+    <div id="gameContainer">
+
+        <!-- ── TITLE SCREEN ── -->
+        <div id="titleScreen">
+            <div class="title-inner">
+                <div class="title-presented-by">MILLO &nbsp;•&nbsp; ARCADE EDITION</div>
+                <div class="title-hit">HIT THE</div>
+                <div class="title-the-wall">WALL</div>
+                <div class="title-divider"></div>
+                <div id="milloTitleBadge" class="hidden">★ &nbsp; MILLO MODE ACTIVE &nbsp; ★</div>
+                <div id="pressStartPrompt">▶ &nbsp; TAP / PRESS ENTER &nbsp; ◀</div>
+                <div class="title-controls">
+                    <span>W A S D</span> or <span>ARROWS</span> — move &nbsp;|&nbsp;
+                    <span>Q / E</span> — strafe &nbsp;|&nbsp; <span>M</span> — map
+                </div>
+            </div>
+        </div>
+
+        <!-- ── LEVEL TRANSITION ── -->
+        <div id="levelTransitionOverlay">
+            <div id="transitionTitle"    class="trans-level-num">LEVEL 1</div>
+            <div class="trans-divider"></div>
+            <div id="transitionSubtitle" class="trans-level-name">COLLECT 5 CDs</div>
+            <div id="transitionGoal"     class="trans-goal">SPEED 1.0x</div>
+        </div>
+
+        <!-- ── GAMEPLAY ── -->
+        <div id="gameplayScreen" class="hidden">
+            <canvas id="gameCanvas"></canvas>
+            <div id="gameUiContainer">
+                <div class="top-hud-bar">
+                    <div class="hud-left">
+                        <div class="hud-lvl" id="levelDisplay">LVL 1</div>
+                        <div class="hud-lvl-speed" id="speedDisplay">1.0x SPEED</div>
+                    </div>
+                    <div class="hud-center" id="timerGroup">
+                        <div class="hud-time-value" id="timerDisplay">30s</div>
+                        <div id="timerProgressBarContainer"><div id="timerProgressBar"></div></div>
+                    </div>
+                    <div class="hud-right">
+                        <div class="hud-cd-count" id="scoreDisplay">0 / 5</div>
+                        <div class="cd-dots-row" id="cdDotsRow"></div>
+                    </div>
+                </div>
+                <div id="activeEffectsBar"></div>
+            </div>
+            <!-- Crosshair -->
+            <div id="crosshair" class="hidden">
+                <div class="ch-h"></div>
+                <div class="ch-v"></div>
+                <div class="ch-dot"></div>
+            </div>
+        </div>
+
+        <!-- ── MESSAGE TOAST ── -->
+        <div id="messageDisplay"></div>
+
+        <!-- ── GAME OVER ── -->
+        <div id="gameOverScreen">
+            <div class="go-header">GAME OVER</div>
+            <div class="go-sub" id="gameOverSub">You reached Level 1</div>
+            <div class="go-score-label">FINAL SCORE</div>
+            <div id="finalScoreDisplay">0</div>
+            <div id="gameOverMessage" style="font-size:9px;color:#8080A0;margin-bottom:8px;"></div>
+            <div class="go-divider"></div>
+
+            <!-- MILLO progress (hidden until first letter found) -->
+            <div id="milloGoSection" class="hidden">
+                <div class="millo-go-label">M · I · L · L · O</div>
+                <div class="millo-progress-row" id="milloProgressRow"></div>
+            </div>
+
+            <div class="go-divider"></div>
+
+            <div id="initialsForm">
+                <div class="go-initials-label">ENTER YOUR INITIALS</div>
+                <input type="text" id="initialsInput" maxlength="3" placeholder="AAA">
+                <button id="submitScoreButton" class="pixel-button">SAVE SCORE</button>
+            </div>
+
+            <div id="scoreboardSection">
+                <div id="scoreboard">
+                    <h3>◆ TOP SCORES ◆</h3>
+                    <ol id="scoreboardList"></ol>
+                </div>
+                <div style="margin-top:16px; display:flex; gap:10px;">
+                    <button id="restartButton" class="pixel-button">PLAY AGAIN</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Minimap -->
+    <div id="minimapWrapper" class="hidden">
+        <div class="minimap-label">MAP</div>
+        <canvas id="minimapCanvas"></canvas>
+        <div class="minimap-hint" id="minimapHint">M</div>
+    </div>
+
+    <!-- Mobile map toggle -->
+    <button id="mapToggleBtn" class="hidden">MAP</button>
+
+    <!-- MILLO complete overlay -->
+    <div id="milloCompleteOverlay">
+        <div class="mcc-chars">
+            <span class="mcc-char">M</span>
+            <span class="mcc-char">I</span>
+            <span class="mcc-char">L</span>
+            <span class="mcc-char">L</span>
+            <span class="mcc-char">O</span>
+        </div>
+        <div class="mcc-title">SECRET</div>
+        <div class="mcc-sub">UNLOCKED</div>
+        <div class="mcc-desc">RAINBOW MODE ACTIVATED<br>SCORE x2 FOREVER</div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="onScreenControls">
+        <div id="leftControls" class="control-cluster">
+            <div class="dpad-row">
+                <div class="dpad-spacer"></div>
+                <button id="btnUp"      class="control-button">▲</button>
+                <div class="dpad-spacer"></div>
+            </div>
+            <div class="dpad-row">
+                <button id="btnStrafeL" class="control-button">◁</button>
+                <button id="btnDown"    class="control-button">▼</button>
+                <button id="btnStrafeR" class="control-button">▷</button>
+            </div>
+        </div>
+        <div id="rightControls" class="control-cluster">
+            <button id="btnTurnL" class="control-button">↺</button>
+            <button id="btnTurnR" class="control-button">↻</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp }    from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp }
+            from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = null;
+        const appId = 'millo-hit-the-wall';
+        const SCORES_COLLECTION = 'hit_the_wall_arcade_deluxe';
+        let db, auth;
+        if (firebaseConfig) {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app); auth = getAuth(app);
+            } catch(e) { console.error("Firebase:", e); }
+        }
+
+        // ── DOM ──
+        const ui = {
+            titleScreen:             document.getElementById('titleScreen'),
+            gameplayScreen:          document.getElementById('gameplayScreen'),
+            gameOverScreen:          document.getElementById('gameOverScreen'),
+            levelTransitionOverlay:  document.getElementById('levelTransitionOverlay'),
+            transitionTitle:         document.getElementById('transitionTitle'),
+            transitionSubtitle:      document.getElementById('transitionSubtitle'),
+            transitionGoal:          document.getElementById('transitionGoal'),
+            mainCanvas:              document.getElementById('gameCanvas'),
+            messageDisplay:          document.getElementById('messageDisplay'),
+            timerDisplay:            document.getElementById('timerDisplay'),
+            timerProgressBar:        document.getElementById('timerProgressBar'),
+            timerGroup:              document.getElementById('timerGroup'),
+            scoreDisplay:            document.getElementById('scoreDisplay'),
+            cdDotsRow:               document.getElementById('cdDotsRow'),
+            levelDisplay:            document.getElementById('levelDisplay'),
+            speedDisplay:            document.getElementById('speedDisplay'),
+            finalScoreDisplay:       document.getElementById('finalScoreDisplay'),
+            gameOverSub:             document.getElementById('gameOverSub'),
+            gameOverMessage:         document.getElementById('gameOverMessage'),
+            activeEffectsBar:        document.getElementById('activeEffectsBar'),
+            initialsForm:            document.getElementById('initialsForm'),
+            initialsInput:           document.getElementById('initialsInput'),
+            submitScoreButton:       document.getElementById('submitScoreButton'),
+            scoreboardSection:       document.getElementById('scoreboardSection'),
+            scoreboardList:          document.getElementById('scoreboardList'),
+            restartButton:           document.getElementById('restartButton'),
+            onScreenControls:        document.getElementById('onScreenControls'),
+            crosshair:               document.getElementById('crosshair'),
+            minimapWrapper:          document.getElementById('minimapWrapper'),
+            minimapCanvas:           document.getElementById('minimapCanvas'),
+            minimapHint:             document.getElementById('minimapHint'),
+            mapToggleBtn:            document.getElementById('mapToggleBtn'),
+            milloTitleBadge:         document.getElementById('milloTitleBadge'),
+            milloGoSection:          document.getElementById('milloGoSection'),
+            milloProgressRow:        document.getElementById('milloProgressRow'),
+            milloCompleteOverlay:    document.getElementById('milloCompleteOverlay'),
+        };
+
+        const audio = {
+            menu:      document.getElementById('menuMusic'),
+            gameplay:  document.getElementById('gameplayMusic'),
+            end:       document.getElementById('endMenuMusic'),
+            cd:        document.getElementById('cdPickupSound'),
+            goldenCd:  document.getElementById('goldenCdPickupSound'),
+            freeze:    document.getElementById('timeFreezeSound'),
+            pathfinder:document.getElementById('pathfinderSound'),
+            curse:     document.getElementById('cursedIdolSound'),
+            goo:       document.getElementById('gooPuddleSound'),
+        };
+
+        function playMusic(t) { [audio.menu, audio.gameplay, audio.end].forEach(a => a?.pause()); t?.play().catch(()=>{}); }
+        function playSound(t) { if (!t) return; t.currentTime = 0; t.play().catch(()=>{}); }
+
+        // ── RENDERER SETUP ──
+        const RENDER_W = 160, RENDER_H = 120;
+        const offscreen = document.createElement('canvas');
+        offscreen.width = RENDER_W; offscreen.height = RENDER_H;
+        const oCtx = offscreen.getContext('2d');
+        const TILE = 64, FOV = Math.PI / 2.2, RAYS = RENDER_W;
+        const wallDist = new Float32Array(RAYS);
+        let mainCtx = null;
+
+        function resizeCanvas() {
+            ui.mainCanvas.width  = ui.gameplayScreen.clientWidth;
+            ui.mainCanvas.height = ui.gameplayScreen.clientHeight;
+            mainCtx = ui.mainCanvas.getContext('2d');
+            mainCtx.imageSmoothingEnabled = false;
+        }
+
+        // ── MINIMAP ──
+        const MMAP_TILE = 6, MMAP_VW = 17, MMAP_VH = 13;
+        let mmapCtx = null, minimapVisible = true;
+
+        function initMinimap() {
+            ui.minimapCanvas.width  = MMAP_VW * MMAP_TILE;
+            ui.minimapCanvas.height = MMAP_VH * MMAP_TILE;
+            mmapCtx = ui.minimapCanvas.getContext('2d');
+        }
+
+        function renderMinimap() {
+            if (!mmapCtx || !mapData.length || !minimapVisible) return;
+            const mc = mmapCtx;
+            mc.clearRect(0, 0, MMAP_VW * MMAP_TILE, MMAP_VH * MMAP_TILE);
+            const ptx = Math.floor(player.x / TILE), pty = Math.floor(player.y / TILE);
+            const ox = ptx - Math.floor(MMAP_VW / 2), oy = pty - Math.floor(MMAP_VH / 2);
+            const d = currentLevelData;
+
+            for (let ty = 0; ty < MMAP_VH; ty++) {
+                for (let tx = 0; tx < MMAP_VW; tx++) {
+                    const mx = ox + tx, my = oy + ty;
+                    const px = tx * MMAP_TILE, py = ty * MMAP_TILE;
+                    if (mx < 0 || mx >= MAP_W || my < 0 || my >= MAP_H) { mc.fillStyle = '#050505'; }
+                    else if (mapData[my][mx] === 1) { mc.fillStyle = d.colors.w1 + '55'; }
+                    else { mc.fillStyle = 'rgba(28,28,40,0.9)'; }
+                    mc.fillRect(px, py, MMAP_TILE, MMAP_TILE);
+                }
+            }
+
+            // Items
+            for (const item of [...powerups, ...hazards]) {
+                if (!item.active) continue;
+                const tx = Math.floor(item.x / TILE) - ox, ty = Math.floor(item.y / TILE) - oy;
+                if (tx < 0 || tx >= MMAP_VW || ty < 0 || ty >= MMAP_VH) continue;
+                const cx = tx * MMAP_TILE + MMAP_TILE / 2, cy = ty * MMAP_TILE + MMAP_TILE / 2;
+                mc.fillStyle = item.type === 'cd' ? (item.golden ? '#FFD700' : '#FFFF55') :
+                               item.type === 'millo' ? '#FFFFFF' :
+                               (item.type === 'curse' || item.type === 'goo') ? '#FF4136' : '#00E5FF';
+                mc.beginPath();
+                mc.arc(cx, cy, item.type === 'millo' ? MMAP_TILE * 0.5 : MMAP_TILE * 0.38, 0, Math.PI * 2);
+                mc.fill();
+                if (item.type === 'millo') {
+                    mc.strokeStyle = MILLO_COLORS[item.milloIdx];
+                    mc.lineWidth = 1; mc.stroke();
+                }
+            }
+
+            // Player arrow
+            const pcx = (ptx - ox) * MMAP_TILE + MMAP_TILE / 2, pcy = (pty - oy) * MMAP_TILE + MMAP_TILE / 2;
+            mc.save(); mc.translate(pcx, pcy); mc.rotate(player.angle - Math.PI / 2);
+            mc.fillStyle = '#FF1493';
+            mc.beginPath(); mc.moveTo(0, -MMAP_TILE * 0.85); mc.lineTo(MMAP_TILE * 0.55, MMAP_TILE * 0.55); mc.lineTo(-MMAP_TILE * 0.55, MMAP_TILE * 0.55); mc.closePath(); mc.fill();
+            mc.restore();
+        }
+
+        function toggleMinimap() {
+            minimapVisible = !minimapVisible;
+            if (!minimapVisible && mmapCtx) {
+                mmapCtx.fillStyle = '#050510';
+                mmapCtx.fillRect(0, 0, MMAP_VW * MMAP_TILE, MMAP_VH * MMAP_TILE);
+                mmapCtx.fillStyle = '#303050'; mmapCtx.font = '6px monospace'; mmapCtx.textAlign = 'center';
+                mmapCtx.fillText('HIDDEN', MMAP_VW * MMAP_TILE / 2, MMAP_VH * MMAP_TILE / 2 + 2);
+            }
+        }
+
+        // ── FLOATING SCORE ──
+        function showFloatingScore(text, color, offsetX = 0) {
+            const el = document.createElement('div');
+            el.className = 'score-float'; el.style.color = color;
+            el.style.setProperty('--fx-offset', offsetX + 'px');
+            el.textContent = text; document.body.appendChild(el);
+            el.addEventListener('animationend', () => el.remove(), {once: true});
+        }
+
+        // ── CROSSHAIR ──
+        function updateCrosshair() {
+            const near = powerups.some(p => p.active && p.type === 'cd' && Math.hypot(player.x - p.x, player.y - p.y) < TILE * 3.5);
+            ui.crosshair.classList.toggle('near-cd', near);
+        }
+
+        // ══════════════════════════════════
+        //  MILLO EASTER EGG SYSTEM
+        // ══════════════════════════════════
+        const MILLO_CHARS  = ['M', 'I', 'L', 'L', 'O'];
+        const MILLO_COLORS = ['#FF1493', '#00E5FF', '#AAFF00', '#FFD700', '#FF7700'];
+        const MILLO_LS_KEY = 'htw_millo_v2';
+
+        let milloCollected   = [false, false, false, false, false];
+        let milloUnlocked    = false;
+        let milloLevelMap    = {}; // { levelIdx: letterIdx } assigned each session
+
+        function loadMilloState() {
+            try {
+                const raw = JSON.parse(localStorage.getItem(MILLO_LS_KEY));
+                if (Array.isArray(raw) && raw.length === 5) milloCollected = raw;
+            } catch(e) {}
+            milloUnlocked = milloCollected.every(Boolean);
+            if (milloUnlocked) ui.milloTitleBadge.classList.remove('hidden');
+        }
+
+        function saveMilloState() {
+            localStorage.setItem(MILLO_LS_KEY, JSON.stringify(milloCollected));
+        }
+
+        // Called once at startGame() — assigns every uncollected letter to a random level (0-19)
+        function rollMilloSession() {
+            milloLevelMap = {};
+            if (milloUnlocked) return;
+            const uncollected = milloCollected.map((v, i) => (!v ? i : -1)).filter(i => i >= 0);
+            if (!uncollected.length) return;
+            const levels = Array.from({length: 20}, (_, i) => i);
+            for (let i = levels.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [levels[i], levels[j]] = [levels[j], levels[i]];
+            }
+            uncollected.forEach((letterIdx, i) => { milloLevelMap[levels[i]] = letterIdx; });
+        }
+
+        function spawnMilloInLevel(letterIdx) {
+            const tiles = emptyTiles();
+            if (!tiles.length) return;
+            const farTiles = tiles.filter(t => Math.hypot((t.x+.5)*TILE - player.x, (t.y+.5)*TILE - player.y) > TILE * 5);
+            const pool = farTiles.length ? farTiles : tiles;
+            const t = pool[Math.floor(Math.random() * pool.length)];
+            textures.milloActive = mkMilloLetterTexture(letterIdx);
+            powerups.push({x: (t.x+.5)*TILE, y: (t.y+.5)*TILE, active: true, type: 'millo', milloIdx: letterIdx});
+        }
+
+        function mkMilloLetterTexture(idx) {
+            const char = MILLO_CHARS[idx], color = MILLO_COLORS[idx];
+            const cv = document.createElement('canvas'); cv.width = cv.height = TILE;
+            const cx = cv.getContext('2d');
+            // Glow disc
+            const g = cx.createRadialGradient(32, 32, 6, 32, 32, 30);
+            g.addColorStop(0, color + 'BB'); g.addColorStop(0.7, color + '33'); g.addColorStop(1, 'transparent');
+            cx.fillStyle = g; cx.beginPath(); cx.arc(32, 32, 30, 0, Math.PI*2); cx.fill();
+            // Outer ring
+            cx.strokeStyle = color; cx.lineWidth = 2.5; cx.shadowColor = color; cx.shadowBlur = 8;
+            cx.beginPath(); cx.arc(32, 32, 24, 0, Math.PI*2); cx.stroke(); cx.shadowBlur = 0;
+            // Dark fill
+            cx.fillStyle = 'rgba(0,0,0,0.78)'; cx.beginPath(); cx.arc(32, 32, 21, 0, Math.PI*2); cx.fill();
+            // Inner ring
+            cx.strokeStyle = color + 'AA'; cx.lineWidth = 1;
+            cx.beginPath(); cx.arc(32, 32, 18, 0, Math.PI*2); cx.stroke();
+            // Letter
+            cx.font = 'bold 24px "Press Start 2P", monospace';
+            cx.textAlign = 'center'; cx.textBaseline = 'middle';
+            cx.fillStyle = '#FFFFFF'; cx.shadowColor = color; cx.shadowBlur = 12;
+            cx.fillText(char, 32, 33); cx.shadowBlur = 0;
+            return cv;
+        }
+
+        function collectMilloLetter(item) {
+            const idx = item.milloIdx;
+            milloCollected[idx] = true;
+            saveMilloState();
+            const char = MILLO_CHARS[idx], color = MILLO_COLORS[idx];
+            showMsg(`◆ MILLO LETTER: ${char} ◆`);
+            showFloatingScore(`★ ${char} ★`, color, 0);
+            playSound(audio.goldenCd);
+            spawnParticles(item.x, item.y, color + 'CC');
+            // Check for full unlock
+            if (milloCollected.every(Boolean) && !milloUnlocked) {
+                milloUnlocked = true;
+                saveMilloState();
+                setTimeout(showMilloComplete, 800);
+            }
+        }
+
+        function showMilloComplete() {
+            ui.milloCompleteOverlay.classList.add('active');
+            ui.milloTitleBadge.classList.remove('hidden');
+            setTimeout(() => {
+                ui.milloCompleteOverlay.classList.remove('active');
+            }, 5000);
+        }
+
+        // Update MILLO progress on game over screen
+        function updateMilloGoDisplay() {
+            const anyFound = milloCollected.some(Boolean);
+            if (!anyFound) { ui.milloGoSection.classList.add('hidden'); return; }
+            ui.milloGoSection.classList.remove('hidden');
+            ui.milloProgressRow.innerHTML = '';
+            MILLO_CHARS.forEach((ch, i) => {
+                const b = document.createElement('div');
+                b.className = 'millo-letter-badge' + (milloCollected[i] ? ' found' : '');
+                b.style.setProperty('--mc', MILLO_COLORS[i]);
+                b.textContent = ch;
+                ui.milloProgressRow.appendChild(b);
+            });
+        }
+
+        // ══════════════════════════════════
+        //  PROCEDURAL LEVEL DATA (infinite)
+        // ══════════════════════════════════
+        function hslToHex(h, s, l) {
+            s /= 100; l /= 100;
+            const k = n => (n + h / 30) % 12;
+            const a = s * Math.min(l, 1 - l);
+            const f = n => Math.round(Math.max(0, Math.min(255, (l - a * Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n), 1)))) * 255)));
+            return `#${f(0).toString(16).padStart(2,'0')}${f(8).toString(16).padStart(2,'0')}${f(4).toString(16).padStart(2,'0')}`;
+        }
+
+        const LEVEL_NAMES = [
+            'SECTOR ZERO',    'NEON CORRIDOR',  'THE MAZE',       'PIXEL DEPTHS',
+            'CHROME HALLS',   'STATIC ZONE',    'FEVER DREAM',    'GLITCH SECTOR',
+            'DEEP SIGNAL',    'ACID MAZE',      'GHOST HALLS',    'VOID PASSAGE',
+            'DARK STATIC',    'NEON ABYSS',     'BLIND SPOT',     'NIGHTMARE HALLS',
+            'CURSED MAZE',    'PHANTOM ZONE',   'THE DARK',       'FINAL SECTOR',
+        ];
+
+        let currentLevelData = null;
+
+        function getLevelData(idx) {
+            // Golden-angle hue rotation gives maximally distinct colors each level
+            const wallHue  = (idx * 137 + 330) % 360;
+            const floorHue = (wallHue + 210) % 360;
+            const ceilHue  = (wallHue + 175) % 360;
+            const w1 = hslToHex(wallHue, 82, 62);
+            const w2 = hslToHex(wallHue, 75, 36);
+            const f1 = hslToHex(floorHue, 52, 7);
+            const f2 = hslToHex(floorHue, 44, 11);
+            const c1 = hslToHex(ceilHue, 38, 4);
+            const c2 = hslToHex(ceilHue, 28, 2);
+
+            // Fog tint derived from wall hue
+            const rad = wallHue * Math.PI / 180;
+            const fogR = Math.round(Math.max(0, Math.cos(rad) * 13 + 12));
+            const fogG = Math.round(Math.max(0, Math.cos(rad - 2.094) * 9 + 7));
+            const fogB = Math.round(Math.max(0, Math.cos(rad + 2.094) * 13 + 12));
+
+            // Scaling difficulty
+            const targetCDs = 5 + idx * 2;                              // grows by 2 per level
+            const cdBonus   = Math.max(2, 5 - Math.floor(idx / 4));     // starts 5s, drops to 2s
+            const goldBonus = Math.max(4, 10 - Math.floor(idx / 4));    // starts 10s, drops to 4s
+            const clearBonus= Math.max(8, 18 - Math.floor(idx / 2));    // level-clear time bonus
+
+            // Maze grows every 2 levels
+            const grow = Math.floor(idx / 2);
+            let mW = Math.min(25, 13 + grow * 2);
+            let mH = Math.min(21, 11 + grow * 2);
+            if (mW % 2 === 0) mW++; if (mH % 2 === 0) mH++;
+
+            const name = LEVEL_NAMES[idx % LEVEL_NAMES.length] || `SECTOR ${idx + 1}`;
+            return { colors:{w1,w2,f1,f2,c1,c2}, fog:{r:fogR,g:fogG,b:fogB},
+                     targetCDs, cdBonus, goldBonus, clearBonus, mazeW:mW, mazeH:mH, name };
+        }
+
+        // ── MAZE GENERATOR ──
+        function generateMaze(cols, rows) {
+            const grid = Array.from({length: rows}, () => new Array(cols).fill(1));
+            const carve = (x, y) => {
+                grid[y][x] = 0;
+                const dirs = [[0,-2],[0,2],[-2,0],[2,0]].sort(() => Math.random() - 0.5);
+                for (const [dx, dy] of dirs) {
+                    const nx = x+dx, ny = y+dy;
+                    if (nx>0&&nx<cols-1&&ny>0&&ny<rows-1&&grid[ny][nx]===1) { grid[y+dy/2][x+dx/2]=0; carve(nx,ny); }
+                }
+            };
+            carve(1, 1);
+            const loops = Math.floor(cols * rows * 0.08);
+            for (let i = 0; i < loops; i++) {
+                const x = 1 + Math.floor(Math.random()*(cols-2)), y = 1 + Math.floor(Math.random()*(rows-2));
+                if (grid[y][x]===1) {
+                    const hOk = grid[y-1]?.[x]===0&&grid[y+1]?.[x]===0;
+                    const vOk = grid[y][x-1]===0&&grid[y][x+1]===0;
+                    if (hOk||vOk) grid[y][x] = 0;
+                }
+            }
+            return grid;
+        }
+
+        // ── GAME STATE ──
+        let lvlIndex = 0, loopMult = 1;
+        let mapData = [], MAP_W, MAP_H;
+        let player = {x:0, y:0, angle:0};
+        const MOVE_SPEED = TILE / 9, TURN_SPEED = 0.06;
+        let score = 0, cdsThisLevel = 0, timeLeft = 30;
+        const INIT_TIME = 30;
+        let gameRunning = false, timerInterval = null, rafId = null;
+        let textures = {}, particles = [], powerups = [], hazards = [];
+        let lastCdTime = 0, cdCombo = 0;
+        // score multiplier: 2x when MILLO unlocked
+        const getScoreMult = () => milloUnlocked ? 2 : 1;
+
+        const FX = {
+            freeze:     {active:false,id:null,dur:6000, startTime:0, name:"TIME FROZEN",  col:"#ADD8E6"},
+            pathfinder: {active:false,id:null,dur:10000,startTime:0, name:"BEACON",       col:"#FFD700"},
+            xray:       {active:false,id:null,dur:8000, startTime:0, name:"X-RAY",        col:"#40E0D0"},
+            curse:      {active:false,id:null,dur:7000, startTime:0, name:"CURSED",       col:"#9B30FF"},
+            goo:        {active:false,id:null,dur:4000, startTime:0, name:"GOO SLOW",     col:"#7B9F35"},
+        };
+
+        // ── TEXTURE GENERATION ──
+        function mkTex(c1,c2,chk=false,wall=false) {
+            const cv=document.createElement('canvas'); cv.width=cv.height=TILE; const cx=cv.getContext('2d');
+            if(chk){ const cs=TILE/(wall?4:2); for(let y=0;y<(wall?4:2);y++) for(let x=0;x<(wall?4:2);x++){ cx.fillStyle=(x+y)%2===0?c1:c2; cx.fillRect(x*cs,y*cs,cs,cs); } }
+            else { cx.fillStyle=c1; cx.fillRect(0,0,TILE,TILE); for(let i=0;i<TILE*TILE/6;i++){ cx.fillStyle=c2; cx.globalAlpha=Math.random()*0.5+0.2; cx.fillRect(Math.random()*TILE,Math.random()*TILE,1,1); } cx.globalAlpha=1; }
+            if(wall){ cx.strokeStyle='rgba(0,0,0,0.35)'; cx.lineWidth=2; for(let i=0;i<=TILE;i+=TILE/2){ cx.beginPath();cx.moveTo(i,0);cx.lineTo(i,TILE);cx.stroke(); cx.beginPath();cx.moveTo(0,i);cx.lineTo(TILE,i);cx.stroke(); } }
+            return cv;
+        }
+        function mkSky(c1,c2){
+            const cv=document.createElement('canvas'); cv.width=TILE*2; cv.height=TILE; const cx=cv.getContext('2d');
+            const g=cx.createLinearGradient(0,0,0,TILE); g.addColorStop(0,c2); g.addColorStop(0.7,c1); g.addColorStop(1,c1);
+            cx.fillStyle=g; cx.fillRect(0,0,cv.width,cv.height);
+            for(let i=0;i<120;i++){ const x=Math.random()*cv.width,y=Math.random()*cv.height*0.85,s=Math.random()*1.3+0.3; cx.fillStyle=`rgba(255,255,${Math.floor(Math.random()*55+200)},${Math.random()*0.7+0.3})`; cx.beginPath();cx.arc(x,y,s,0,Math.PI*2);cx.fill(); }
+            return cv;
+        }
+        function mkCD(golden=false){
+            const cv=document.createElement('canvas'); cv.width=cv.height=TILE; const cx=cv.getContext('2d');
+            const [cx2,cy2,oR,iR]=[TILE/2,TILE/2,TILE*0.45,TILE*0.1];
+            const g=cx.createRadialGradient(cx2,cy2,iR,cx2,cy2,oR);
+            if(golden){g.addColorStop(0,'#FFFFE0');g.addColorStop(0.5,'#FFD700');g.addColorStop(1,'#FFA500');}
+            else{g.addColorStop(0,'#EEEEFF');g.addColorStop(0.6,'#A0A0CC');g.addColorStop(1,'#C0C0EE');}
+            cx.fillStyle=g; cx.beginPath();cx.arc(cx2,cy2,oR,0,Math.PI*2);cx.fill();
+            if(!golden){ const sc=['rgba(255,0,0,.25)','rgba(255,165,0,.25)','rgba(255,255,0,.25)','rgba(0,200,0,.25)','rgba(0,0,255,.25)','rgba(148,0,211,.25)','rgba(238,130,238,.25)']; for(let i=0;i<7;i++){ cx.beginPath(); const a=(i/7)*Math.PI*0.3,s=Math.PI*(0.2+i*0.2)+a,e=s+Math.PI*0.3,r=oR*(0.6+Math.random()*0.3); cx.arc(cx2,cy2,r,s,e);cx.strokeStyle=sc[i%sc.length];cx.lineWidth=TILE*0.055;cx.stroke(); } }
+            else { for(let i=0;i<12;i++){ cx.beginPath(); const a=(i/12)*Math.PI*2; cx.moveTo(cx2+Math.cos(a)*iR,cy2+Math.sin(a)*iR); cx.lineTo(cx2+Math.cos(a+0.1)*oR*0.95,cy2+Math.sin(a+0.1)*oR*0.95); cx.strokeStyle=`rgba(255,255,180,${0.2+Math.random()*0.3})`;cx.lineWidth=TILE*0.02;cx.stroke(); } }
+            cx.fillStyle=golden?'#4A2C00':'#202030'; cx.beginPath();cx.arc(cx2,cy2,iR,0,Math.PI*2);cx.fill();
+            if(!golden){cx.strokeStyle='rgba(255,255,255,0.5)';cx.lineWidth=TILE*0.015;cx.beginPath();cx.arc(cx2,cy2,oR,0,Math.PI*2);cx.stroke();}
+            if(golden){for(let i=0;i<5;i++){cx.fillStyle=`rgba(255,255,200,${0.5+Math.random()*0.5})`;const sx=cx2+(Math.random()-.5)*oR*1.5,sy=cy2+(Math.random()-.5)*oR*1.5,ss=TILE*(0.02+Math.random()*0.03);cx.fillRect(sx-ss/2,sy-ss/2,ss,ss);}}
+            return cv;
+        }
+
+        function buildSprites(){
+            textures.cd=mkCD(false); textures.goldenCd=mkCD(true);
+            const xr=document.createElement('canvas');xr.width=xr.height=TILE;const xc=xr.getContext('2d');
+            xc.strokeStyle='#40E0D0';xc.lineWidth=3; xc.beginPath();xc.arc(20,32,12,0,Math.PI*2);xc.stroke(); xc.beginPath();xc.arc(44,32,12,0,Math.PI*2);xc.stroke();
+            xc.fillStyle='rgba(173,216,230,0.45)'; xc.beginPath();xc.arc(20,32,10,0,Math.PI*2);xc.fill(); xc.beginPath();xc.arc(44,32,10,0,Math.PI*2);xc.fill(); textures.xray=xr;
+            const fr=document.createElement('canvas');fr.width=fr.height=TILE;const fc=fr.getContext('2d');
+            fc.fillStyle='#ADD8E6';fc.beginPath();fc.arc(32,32,22,0,Math.PI*2);fc.fill(); fc.strokeStyle='#87CEEB';fc.lineWidth=3;fc.stroke(); fc.fillStyle='#FFF';fc.fillRect(30,16,4,18);fc.fillRect(20,30,16,4); textures.freeze=fr;
+            const pf=document.createElement('canvas');pf.width=pf.height=TILE;const pc=pf.getContext('2d');
+            pc.fillStyle='#FFD700'; pc.beginPath();pc.moveTo(32,10);pc.lineTo(42,22);pc.lineTo(36,22);pc.lineTo(36,54);pc.lineTo(28,54);pc.lineTo(28,22);pc.lineTo(22,22);pc.closePath();pc.fill(); pc.strokeStyle='#B8860B';pc.lineWidth=2;pc.stroke(); textures.pathfinder=pf;
+            const id=document.createElement('canvas');id.width=id.height=TILE;const ic=id.getContext('2d');
+            ic.fillStyle='#4B0082';ic.beginPath();ic.moveTo(32,12);ic.lineTo(45,52);ic.lineTo(19,52);ic.closePath();ic.fill(); ic.fillStyle='#9B30FF';ic.beginPath();ic.arc(32,20,5,0,Math.PI*2);ic.fill(); textures.curse=id;
+            const go=document.createElement('canvas');go.width=go.height=TILE;const gc=go.getContext('2d');
+            gc.fillStyle='#4a6020';gc.beginPath();gc.ellipse(32,46,26,13,0,0,Math.PI*2);gc.fill(); gc.fillStyle='#6a8030';gc.beginPath();gc.ellipse(32,44,18,9,0,0,Math.PI*2);gc.fill(); textures.goo=go;
+        }
+
+        function loadLevelGfx(d){
+            textures.wall    = mkTex(d.colors.w1, d.colors.w2, false, true);
+            textures.floor   = mkTex(d.colors.f1, d.colors.f2, true);
+            textures.ceiling = mkSky(d.colors.c1, d.colors.c2);
+        }
+
+        // ── SPAWN ──
+        function emptyTiles(){
+            const e=[];
+            for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++)
+                if(mapData[y][x]===0 && Math.hypot((x+.5)*TILE-player.x,(y+.5)*TILE-player.y)>TILE*2) e.push({x,y});
+            return e;
+        }
+        function spawnOne(list,type,max=1){
+            if(list.filter(e=>e.type===type&&e.active).length>=max) return;
+            const tiles=emptyTiles(); if(!tiles.length) return;
+            const p=tiles[Math.floor(Math.random()*tiles.length)];
+            list.push({x:(p.x+.5)*TILE, y:(p.y+.5)*TILE, active:true, type});
+        }
+        function spawnCycle(){
+            const d = currentLevelData;
+            const rem = d.targetCDs - cdsThisLevel;
+            const activeCDs = powerups.filter(p=>p.type==='cd'&&p.active).length;
+            for(let i=activeCDs; i<Math.min(3,rem); i++){
+                const golden=Math.random()<0.2; const tiles=emptyTiles();
+                if(tiles.length){ const p=tiles[Math.floor(Math.random()*tiles.length)]; powerups.push({x:(p.x+.5)*TILE,y:(p.y+.5)*TILE,active:true,type:'cd',golden}); }
+            }
+            // Powerups scale in slowly: none in lvl 1-2, rare in 3-6, normal from 7+
+            const pwupChance = lvlIndex < 2 ? 0 : lvlIndex < 6 ? 0.35 : 1.0;
+            if (Math.random() < pwupChance) {
+                const activePwups = powerups.filter(p=>p.active&&p.type!=='cd'&&p.type!=='millo').length;
+                if(activePwups<1){ const types=['freeze','pathfinder','xray']; spawnOne(powerups,types[Math.floor(Math.random()*types.length)],1); }
+            }
+            // Goo scales normally; curse is rare until level 15 then explodes
+            const maxGoo = Math.min(3, 1 + Math.floor(lvlIndex / 5));
+            const maxCurse = lvlIndex >= 15
+                ? Math.min(5, 3 + Math.floor((lvlIndex - 15) / 2))
+                : Math.min(1, Math.floor(lvlIndex / 8));
+            spawnOne(hazards, 'goo', maxGoo);
+            spawnOne(hazards, 'curse', maxCurse);
+        }
+
+        // ── HUD ──
+        let msgTimer = null;
+        function showMsg(msg){ ui.messageDisplay.textContent=msg; ui.messageDisplay.classList.add('visible'); clearTimeout(msgTimer); msgTimer=setTimeout(()=>ui.messageDisplay.classList.remove('visible'),2400); }
+
+        function updateHUD(){
+            const d = currentLevelData;
+            ui.timerDisplay.textContent = `${Math.ceil(timeLeft)}s`;
+            ui.scoreDisplay.textContent = `${cdsThisLevel} / ${d.targetCDs}`;
+            ui.levelDisplay.textContent = `LVL ${lvlIndex+1}`;
+            ui.speedDisplay.textContent = `${loopMult.toFixed(1)}x SPEED`;
+            if (milloUnlocked) ui.speedDisplay.textContent += ' · ★2x';
+
+            const pct = Math.min(100, Math.max(0, (timeLeft / INIT_TIME) * 100));
+            ui.timerProgressBar.style.width = `${pct}%`;
+            ui.timerProgressBar.style.backgroundColor = pct<25?'#FF4136':pct<55?'#FFDC00':'#2ECC40';
+            ui.timerGroup.classList.toggle('critical', timeLeft <= 10);
+
+            // CD dots (up to 12 visible)
+            ui.cdDotsRow.innerHTML = '';
+            const show = Math.min(d.targetCDs, 12);
+            for (let i = 0; i < show; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'cd-dot' + (i < cdsThisLevel ? ' filled' : '');
+                ui.cdDotsRow.appendChild(dot);
+            }
+
+            // Effect badges with countdown
+            ui.activeEffectsBar.innerHTML = ''; let any = false;
+            for (const k in FX) {
+                if (!FX[k].active) continue; any = true;
+                const elapsed = FX[k].startTime ? Date.now() - FX[k].startTime : 0;
+                const remPct  = Math.max(0, 100 - (elapsed / FX[k].dur) * 100);
+                const secLeft = Math.max(0, Math.ceil((FX[k].dur - elapsed) / 1000));
+                const b = document.createElement('div');
+                b.className = 'effect-badge'; b.style.backgroundColor = FX[k].col;
+                b.innerHTML = `<span class="fx-name">${FX[k].name}</span><span class="fx-secs">${secLeft}s</span><div class="fx-bar" style="width:${remPct}%"></div>`;
+                ui.activeEffectsBar.appendChild(b);
+            }
+            ui.activeEffectsBar.classList.toggle('has-effects', any);
+        }
+
+        function activateFX(type){
+            if(FX[type].id) clearTimeout(FX[type].id);
+            FX[type].active = true; FX[type].startTime = Date.now();
+            FX[type].id = setTimeout(()=>{ FX[type].active=false; FX[type].startTime=0; updateHUD(); }, FX[type].dur);
+            updateHUD();
+        }
+        function clearFX(){ for(const k in FX){ FX[k].active=false; FX[k].startTime=0; clearTimeout(FX[k].id); } }
+
+        function spawnParticles(x,y,col){
+            for(let i=0;i<18;i++) particles.push({x,y,size:Math.random()*2.5+1,vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2,color:col,alpha:1,life:35});
+        }
+
+        // ── LEVEL LOADING ──
+        function loadLevel(idx){
+            lvlIndex = idx;
+            loopMult = 1 + idx * 0.1; // 10% faster per level
+            currentLevelData = getLevelData(idx);
+
+            mapData = generateMaze(currentLevelData.mazeW, currentLevelData.mazeH);
+            MAP_W = mapData[0].length; MAP_H = mapData.length;
+
+            loadLevelGfx(currentLevelData);
+            powerups=[]; hazards=[]; particles=[]; cdsThisLevel=0;
+            clearFX(); cdCombo=0;
+
+            outer: for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++)
+                if(mapData[y][x]===0){ player.x=(x+.5)*TILE; player.y=(y+.5)*TILE; player.angle=Math.PI/2; break outer; }
+
+            // Spawn MILLO letter if one is assigned to this level
+            if (milloLevelMap[idx] !== undefined) spawnMilloInLevel(milloLevelMap[idx]);
+
+            spawnCycle();
+            updateHUD();
+        }
+
+        function levelComplete(){
+            gameRunning = false;
+            const d = currentLevelData;
+            const bonus = d.clearBonus;
+            timeLeft += bonus;
+
+            ui.transitionTitle.textContent    = `LVL ${lvlIndex+1} CLEAR`;
+            ui.transitionSubtitle.textContent = `+${bonus}s TIME BONUS`;
+            ui.transitionGoal.textContent     = 'PREPARE...';
+            ui.levelTransitionOverlay.classList.add('active');
+
+            setTimeout(() => {
+                loadLevel(lvlIndex + 1);
+                const nd = currentLevelData;
+                ui.transitionTitle.textContent    = `LEVEL ${lvlIndex+1}`;
+                ui.transitionSubtitle.textContent = nd.name;
+                ui.transitionGoal.textContent     = `COLLECT ${nd.targetCDs} CDs · SPEED ${loopMult.toFixed(1)}x`;
+                setTimeout(() => {
+                    ui.levelTransitionOverlay.classList.remove('active');
+                    gameRunning = true;
+                    if(rafId) cancelAnimationFrame(rafId);
+                    rafId = requestAnimationFrame(gameLoop);
+                }, 1500);
+            }, 2200);
+        }
+
+        // ── INPUT ──
+        const keys = {};
+        function setupInput(){
+            window.addEventListener('keydown', e => {
+                keys[e.key.toLowerCase()] = true;
+                if (e.key === 'Enter' && !gameRunning && !ui.titleScreen.classList.contains('hidden')) startGame();
+                if (e.key.toLowerCase() === 'm' && gameRunning) toggleMinimap();
+            });
+            window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+            ui.titleScreen.addEventListener('pointerup', () => {
+                if (!gameRunning && !ui.titleScreen.classList.contains('hidden')) startGame();
+            });
+            const bind = (id, k) => {
+                const b = document.getElementById(id); if(!b) return;
+                b.addEventListener('touchstart',  e=>{ e.preventDefault(); keys[k]=true;  b.classList.add('active');    navigator.vibrate?.(8); },{passive:false});
+                b.addEventListener('touchend',    e=>{ e.preventDefault(); keys[k]=false; b.classList.remove('active'); },{passive:false});
+                b.addEventListener('touchcancel', ()=>{ keys[k]=false; b.classList.remove('active'); });
+                b.addEventListener('mousedown', ()=>{ keys[k]=true;  b.classList.add('active'); });
+                b.addEventListener('mouseup',   ()=>{ keys[k]=false; b.classList.remove('active'); });
+                b.addEventListener('mouseleave',()=>{ keys[k]=false; b.classList.remove('active'); });
+            };
+            bind('btnUp','arrowup'); bind('btnDown','arrowdown');
+            bind('btnTurnL','arrowleft'); bind('btnTurnR','arrowright');
+            bind('btnStrafeL','q'); bind('btnStrafeR','e');
+            ui.mapToggleBtn.addEventListener('pointerup', e => { e.stopPropagation(); toggleMinimap(); navigator.vibrate?.(12); });
+        }
+
+        function handleInput(){
+            if(!gameRunning) return;
+            const spd = FX.goo.active ? MOVE_SPEED*0.38 : MOVE_SPEED;
+            let mv=0, st=0;
+            if(keys['arrowup']  ||keys['w']) mv= spd;
+            if(keys['arrowdown']||keys['s']) mv=-spd;
+            if(keys['q']) st=-spd; if(keys['e']) st=spd;
+            if(keys['arrowleft'] ||keys['a']) player.angle-=TURN_SPEED;
+            if(keys['arrowright']||keys['d']) player.angle+=TURN_SPEED;
+            player.angle=(player.angle+Math.PI*2)%(Math.PI*2);
+
+            const dx=Math.cos(player.angle)*mv-Math.sin(player.angle)*st;
+            const dy=Math.sin(player.angle)*mv+Math.cos(player.angle)*st;
+            const buf=TILE*0.2;
+            if(dx){ const cx=player.x+dx+(dx>0?buf:-buf); if(mapData[Math.floor(player.y/TILE)]?.[Math.floor(cx/TILE)]===0) player.x+=dx; }
+            if(dy){ const cy=player.y+dy+(dy>0?buf:-buf); if(mapData[Math.floor(cy/TILE)]?.[Math.floor(player.x/TILE)]===0) player.y+=dy; }
+
+            const collect = (list, hazard) => {
+                for(let i=list.length-1;i>=0;i--){
+                    const e=list[i];
+                    if(!e.active||Math.hypot(player.x-e.x,player.y-e.y)>=TILE*0.62) continue;
+                    e.active=false;
+                    if(hazard){
+                        if(e.type==='curse'){activateFX('curse');showMsg('CURSED! BLINDNESS!');playSound(audio.curse);}
+                        if(e.type==='goo')  {activateFX('goo');  showMsg('GOO SLOWDOWN!');    playSound(audio.goo);}
+                    } else {
+                        if(e.type==='millo'){ collectMilloLetter(e); continue; }
+                        const d = currentLevelData, mult = getScoreMult();
+                        if(e.type==='cd'){
+                            const now=Date.now();
+                            if(now-lastCdTime<5000){cdCombo++;}else{cdCombo=1;} lastCdTime=now;
+                            if(e.golden){
+                                score+=5*mult; cdsThisLevel++; timeLeft+=d.goldBonus;
+                                showMsg(`GOLDEN CD! +${d.goldBonus}s!`);
+                                showFloatingScore(`+${5*mult} ★ GOLDEN!`,'#FFD700',(Math.random()-.5)*60);
+                                playSound(audio.goldenCd); spawnParticles(e.x,e.y,'rgba(255,215,0,.85)');
+                            } else {
+                                score+=1*mult; cdsThisLevel++; timeLeft+=d.cdBonus;
+                                showMsg(`CD FOUND! +${d.cdBonus}s`);
+                                showFloatingScore(`+${1*mult} CD`,'#FFFFAA',(Math.random()-.5)*60);
+                                playSound(audio.cd); spawnParticles(e.x,e.y,'rgba(200,200,255,.85)');
+                            }
+                            if(cdCombo>=2) setTimeout(()=>showFloatingScore(`${cdCombo}x COMBO!`,'#FF69B4',(Math.random()-.5)*80),120);
+                            updateHUD();
+                            if(cdsThisLevel>=d.targetCDs) setTimeout(levelComplete,100);
+                            else setTimeout(spawnCycle,120);
+                        }
+                        else if(e.type==='freeze')    {activateFX('freeze');    showMsg('TIME FROZEN!');   playSound(audio.freeze);    showFloatingScore('⏱ FREEZE!','#ADD8E6');}
+                        else if(e.type==='pathfinder'){activateFX('pathfinder');showMsg('BEACON ACTIVE!'); playSound(audio.pathfinder);showFloatingScore('◆ BEACON','#FFD700');}
+                        else if(e.type==='xray')      {activateFX('xray');      showMsg('X-RAY VISION!');  showFloatingScore('◎ X-RAY','#40E0D0');}
+                    }
+                }
+            };
+            collect(powerups,false);
+            collect(hazards, true);
+        }
+
+        // ── RENDERER ──
+        function render(){
+            if(!gameRunning) return;
+            const hz=RENDER_H/2;
+            oCtx.drawImage(textures.ceiling,0,0,RENDER_W,hz);
+            oCtx.drawImage(textures.floor,  0,hz,RENDER_W,RENDER_H-hz);
+            const {r,g,b}=currentLevelData.fog;
+
+            for(let i=0;i<RAYS;i++){
+                const ra=player.angle-FOV/2+(i/RAYS)*FOV;
+                const ex=Math.cos(ra),ey=Math.sin(ra);
+                let d=0,hit=false,side=0;
+                while(!hit&&d<TILE*MAP_W){
+                    d++;
+                    const tx=Math.floor((player.x+ex*d)/TILE),ty=Math.floor((player.y+ey*d)/TILE);
+                    if(tx<0||tx>=MAP_W||ty<0||ty>=MAP_H){hit=true;d=TILE*MAP_W;}
+                    else if(mapData[ty][tx]===1){
+                        hit=true;
+                        const a=Math.atan2((player.y+ey*d)-ty*TILE-TILE/2,(player.x+ex*d)-tx*TILE-TILE/2);
+                        side=(a>=-Math.PI*.25&&a<Math.PI*.25)||(a<-Math.PI*.75||a>=Math.PI*.75)?0:1;
+                    }
+                }
+                const cd=d*Math.cos(ra-player.angle); wallDist[i]=cd;
+                const wh=Math.min(RENDER_H,(TILE/cd)*RENDER_H), wt=hz-wh/2;
+                const tx=Math.floor(side?(player.y+ey*d)%TILE:(player.x+ex*d)%TILE);
+                if(FX.xray.active){ oCtx.globalAlpha=0.28; oCtx.drawImage(textures.wall,tx,0,1,TILE,i,wt,1,wh); oCtx.globalAlpha=1; oCtx.strokeStyle='rgba(0,255,255,.35)';oCtx.lineWidth=.5;oCtx.strokeRect(i,wt,1,wh); }
+                else { oCtx.drawImage(textures.wall,tx,0,1,TILE,i,wt,1,wh); const shade=Math.max(.04,1-(cd/(TILE*7))); oCtx.fillStyle=`rgba(${r},${g},${b},${1-shade})`; oCtx.fillRect(i,wt,1,wh); }
+            }
+
+            // Sprites
+            const ents=[...powerups,...hazards].filter(e=>e.active);
+            ents.sort((a,b)=>Math.hypot(b.x-player.x,b.y-player.y)-Math.hypot(a.x-player.x,a.y-player.y));
+            for(const item of ents){
+                const dx=item.x-player.x,dy=item.y-player.y,dist=Math.hypot(dx,dy);
+                let sa=(Math.atan2(dy,dx)-player.angle+Math.PI*2)%(Math.PI*2);
+                if(sa>Math.PI)sa-=Math.PI*2;
+                if(Math.abs(sa)>=FOV/1.5||dist<TILE*.1) continue;
+                let spr=textures[item.type]||textures.cd;
+                if(item.type==='cd'&&item.golden) spr=textures.goldenCd;
+                if(item.type==='millo') spr=textures.milloActive||textures.cd;
+                const sc=item.type==='goo'?.5:item.type==='cd'?.65:item.type==='millo'?.8:.55;
+                const ss=Math.min(RENDER_H,(TILE/dist)*RENDER_H*sc);
+                const sx=RENDER_W/2+(sa/(FOV/2))*(RENDER_W/2)-ss/2;
+                let sy=hz-ss/2;
+                if(item.type==='goo') sy=hz+ss*.1;
+                if(item.type==='millo') sy-=Math.sin(Date.now()/400)*3; // bob
+                if(sx+ss<=0||sx>=RENDER_W) continue;
+                const proj=dist*Math.cos(sa);
+                const ri=Math.floor(Math.max(0,Math.min(RAYS-1,sx+ss/2)));
+                const vis=FX.xray.active||(FX.pathfinder.active&&item.type==='cd')||item.type==='millo'||proj<wallDist[ri]+TILE*.1;
+                if(!vis) continue;
+                oCtx.globalAlpha=Math.max(.18,1-dist/(TILE*15));
+                let ds=ss;
+                if(FX.pathfinder.active&&item.type==='cd'){ds*=(Math.sin(Date.now()/150)*.2+1);oCtx.shadowColor='#FFD700';oCtx.shadowBlur=12;}
+                if(item.type==='millo'){
+                    ds*=(Math.sin(Date.now()/300)*.12+1);
+                    oCtx.shadowColor=MILLO_COLORS[item.milloIdx]; oCtx.shadowBlur=15;
+                }
+                if(item.type==='goo') oCtx.drawImage(spr,sx,sy,ss,ss*.5);
+                else oCtx.drawImage(spr,sx-(ds-ss)/2,sy-(ds-ss)/2,ds,ds);
+                oCtx.shadowBlur=0; oCtx.globalAlpha=1;
+            }
+
+            // Particles
+            for(let i=particles.length-1;i>=0;i--){
+                const p=particles[i]; p.x+=p.vx;p.y+=p.vy;p.alpha-=.04;p.life--;
+                if(p.life<=0||p.alpha<=0){particles.splice(i,1);continue;}
+                const dx=p.x-player.x,dy=p.y-player.y,d=Math.hypot(dx,dy);
+                if(d>10){ let sa=(Math.atan2(dy,dx)-player.angle+Math.PI*2)%(Math.PI*2); if(sa>Math.PI)sa-=Math.PI*2; if(Math.abs(sa)<FOV/1.5){ const sx=RENDER_W/2+(sa/(FOV/2))*(RENDER_W/2),sy=hz+(TILE/d*2),ps=Math.max(1,(p.size*TILE)/(d*2)); oCtx.globalAlpha=p.alpha;oCtx.fillStyle=p.color;oCtx.fillRect(sx,sy,ps,ps);oCtx.globalAlpha=1; } }
+            }
+
+            // Curse fog
+            if(FX.curse.active){ oCtx.fillStyle='rgba(4,0,8,.96)'; oCtx.fillRect(0,0,RENDER_W,RENDER_H); oCtx.globalCompositeOperation='destination-out'; oCtx.beginPath();oCtx.arc(RENDER_W/2,hz+RENDER_H*.05,RENDER_W/5,0,Math.PI*2);oCtx.fill(); oCtx.globalCompositeOperation='source-over'; }
+
+            // Blit to main canvas
+            if(!mainCtx) return;
+            mainCtx.fillStyle='#000';
+            mainCtx.fillRect(0,0,ui.mainCanvas.width,ui.mainCanvas.height);
+            mainCtx.imageSmoothingEnabled=false;
+            const cw=ui.mainCanvas.width,ch=ui.mainCanvas.height,asp=RENDER_W/RENDER_H;
+            let dw=cw,dh=cw/asp; if(dh>ch){dh=ch;dw=ch*asp;}
+            mainCtx.drawImage(offscreen,(cw-dw)/2,(ch-dh)/2,dw,dh);
+
+            // MILLO rainbow wall effect
+            if(milloUnlocked){
+                const hueShift = (Date.now()/80)%360;
+                ui.mainCanvas.style.filter = `hue-rotate(${hueShift.toFixed(0)}deg) saturate(1.4)`;
+            }
+        }
+
+        function gameLoop(){
+            if(!gameRunning) return;
+            handleInput(); render(); renderMinimap(); updateCrosshair();
+            rafId = requestAnimationFrame(gameLoop);
+        }
+
+        // ── GAME FLOW ──
+        function startGame(){
+            ui.titleScreen.classList.add('hidden');
+            ui.gameOverScreen.classList.remove('visible');
+            ui.gameplayScreen.classList.remove('hidden');
+
+            const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+            ui.onScreenControls.style.display = isTouch ? 'flex' : 'none';
+            ui.minimapWrapper.classList.remove('hidden');
+            ui.crosshair.classList.remove('hidden');
+            ui.minimapHint.textContent = isTouch ? 'TAP' : 'M';
+            if (isTouch) { ui.mapToggleBtn.classList.remove('hidden'); ui.mapToggleBtn.style.display = 'block'; }
+            if (!milloUnlocked) ui.mainCanvas.style.filter = '';
+
+            resizeCanvas(); initMinimap(); minimapVisible = true;
+            score=0; timeLeft=INIT_TIME;
+            rollMilloSession(); // roll MILLO letter for this session
+            if(auth&&!auth.currentUser) signInAnonymously(auth).catch(()=>{});
+
+            loadLevel(0);
+            const d = currentLevelData;
+            ui.transitionTitle.textContent    = 'LEVEL 1';
+            ui.transitionSubtitle.textContent = d.name;
+            ui.transitionGoal.textContent     = `COLLECT ${d.targetCDs} CDs · GOOD LUCK!`;
+            ui.levelTransitionOverlay.classList.add('active');
+
+            setTimeout(()=>{
+                ui.levelTransitionOverlay.classList.remove('active');
+                gameRunning = true;
+                playMusic(audio.gameplay);
+                if(rafId) cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(gameLoop);
+                clearInterval(timerInterval);
+                timerInterval = setInterval(()=>{
+                    if(!FX.freeze.active&&!ui.levelTransitionOverlay.classList.contains('active')){
+                        timeLeft -= loopMult;
+                        if(timeLeft<=0){timeLeft=0;gameOver();}
+                        updateHUD();
+                    }
+                },1000);
+            },1600);
+        }
+
+        function gameOver(){
+            gameRunning = false;
+            clearInterval(timerInterval); clearFX();
+            if (!milloUnlocked) ui.mainCanvas.style.filter = '';
+            ui.gameplayScreen.classList.add('hidden');
+            ui.onScreenControls.style.display='none';
+            ui.crosshair.classList.add('hidden');
+            ui.minimapWrapper.classList.add('hidden');
+            ui.mapToggleBtn.style.display='none';
+            ui.gameOverScreen.classList.add('visible');
+            ui.finalScoreDisplay.textContent = score;
+            ui.gameOverSub.textContent   = `You reached Level ${lvlIndex+1}`;
+            const mult = getScoreMult();
+            ui.gameOverMessage.textContent = mult > 1 ? `★ MILLO 2x SCORE ACTIVE ★` : '';
+            updateMilloGoDisplay();
+            playMusic(audio.end);
+            ui.initialsForm.style.display='flex';
+            ui.scoreboardSection.classList.remove('visible');
+        }
+
+        // ── FIREBASE ──
+        ui.submitScoreButton.addEventListener('click', async () => {
+            if(!db||!auth){showScoreboard(null);return;}
+            const initials=(ui.initialsInput.value.trim().toUpperCase().substring(0,3)||'AAA');
+            try{ await addDoc(collection(db,`/artifacts/${appId}/public/data/${SCORES_COLLECTION}`),{score,level:lvlIndex+1,playerName:initials,timestamp:serverTimestamp()}); }catch(e){console.error(e);}
+            showScoreboard(initials);
+        });
+        async function showScoreboard(initials){
+            ui.initialsForm.style.display='none'; ui.scoreboardSection.classList.add('visible');
+            ui.scoreboardList.innerHTML='<li style="color:#606080">Loading...</li>';
+            if(!db){ui.scoreboardList.innerHTML='<li style="color:#606080">Offline</li>';return;}
+            try{
+                const q=query(collection(db,`/artifacts/${appId}/public/data/${SCORES_COLLECTION}`),orderBy('score','desc'),limit(5));
+                const snap=await getDocs(q); ui.scoreboardList.innerHTML='';
+                snap.forEach(d=>{ const v=d.data(); const li=document.createElement('li'); li.innerHTML=`<span>${v.playerName} <span style="color:#606080">Lv${v.level}</span></span><span class="score-value">${v.score}</span>`; ui.scoreboardList.appendChild(li); });
+                if(snap.empty) ui.scoreboardList.innerHTML='<li style="color:#606080">No scores yet.</li>';
+            }catch(e){console.error(e);}
+        }
+        ui.restartButton.addEventListener('click',()=>{ ui.gameOverScreen.classList.remove('visible'); ui.titleScreen.classList.remove('hidden'); playMusic(audio.menu); });
+
+        window.addEventListener('resize',()=>{ if(!ui.gameplayScreen.classList.contains('hidden')){ resizeCanvas(); if(!gameRunning)render(); } });
+
+        // ── INIT ──
+        loadMilloState();
+        setupInput();
+        buildSprites();
+        document.body.addEventListener('click',()=>{ if(!gameRunning&&!ui.gameOverScreen.classList.contains('visible')) playMusic(audio.menu); },{once:true});
+    </script>
+</body>
+</html>
