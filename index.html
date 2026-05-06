@@ -129,6 +129,14 @@
         .hud-center.critical #timerProgressBarContainer { border-color: rgba(255,65,54,0.6); box-shadow: 0 0 6px rgba(255,65,54,0.4); }
         .hud-right { flex: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .hud-cd-count { font-size: 13px; color: #FFFF00; text-align: right; }
+        .hud-pause-btn {
+            font-family: 'Press Start 2P', monospace; font-size: 7px; padding: 3px 8px;
+            background: rgba(0,0,0,0.6); border: 1px solid rgba(255,20,147,0.4);
+            color: #FF69B4; cursor: pointer; pointer-events: auto;
+            -webkit-tap-highlight-color: transparent; letter-spacing: 1px;
+            transition: background 0.1s;
+        }
+        .hud-pause-btn:active { background: rgba(255,20,147,0.3); }
         .cd-dots-row { display: flex; gap: 3px; flex-wrap: wrap; justify-content: flex-end; max-width: 110px; }
         .cd-dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid rgba(255,255,0,0.3); background: transparent; transition: background 0.15s, box-shadow 0.15s; }
         .cd-dot.filled { background: #FFFF00; border-color: #FFFF00; box-shadow: 0 0 5px #FFFF00; }
@@ -304,27 +312,64 @@
         #scoreboard li .score-value { color: #FFFF00; }
 
         /* ══════════════════════════════════
+           PAUSE OVERLAY
+        ══════════════════════════════════ */
+        #pauseOverlay {
+            position: fixed; inset: 0; z-index: 150;
+            background: rgba(0,0,0,0.82);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.2s ease;
+            text-align: center; gap: 20px;
+        }
+        #pauseOverlay.active { opacity: 1; pointer-events: all; }
+        .pause-title {
+            font-size: clamp(40px, 10vw, 68px); color: #FF1493;
+            text-shadow: 3px 3px 0 #8B0057, 0 0 30px rgba(255,20,147,0.6);
+        }
+        .pause-hint { font-size: 8px; color: #404060; letter-spacing: 3px; }
+        .pause-resume-btn {
+            font-family: 'Press Start 2P', monospace; font-size: 11px;
+            padding: 12px 28px; background: #FF1493; color: #000;
+            border: none; cursor: pointer; box-shadow: 3px 3px 0 #8B0057;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .pause-resume-btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 #8B0057; }
+
+        /* ══════════════════════════════════
            MILLO LETTER COLLECT OVERLAY
         ══════════════════════════════════ */
         #milloLetterOverlay {
             position: fixed; inset: 0; z-index: 200;
-            background: rgba(0,0,0,0.93);
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            opacity: 0; pointer-events: none;
+            opacity: 0; pointer-events: none;          /* always non-blocking */
             transition: opacity 0.25s ease;
-            text-align: center; gap: clamp(12px, 3vh, 24px);
         }
-        #milloLetterOverlay.active { opacity: 1; pointer-events: all; }
+        #milloLetterOverlay.active { opacity: 1; }
+        .mlo-top {
+            position: absolute; top: 10%;
+            left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+        }
         .mlo-label {
-            font-size: clamp(9px, 2vw, 13px); color: #FF69B4; letter-spacing: 6px;
-            text-shadow: 0 0 10px #FF1493;
-            animation: mloIn 0.35s ease-out both;
+            font-size: clamp(8px, 1.8vw, 11px); color: #FF69B4; letter-spacing: 5px;
+            text-shadow: 0 0 8px #FF1493;
+            background: rgba(0,0,0,0.65); padding: 4px 14px; border-radius: 20px;
+            animation: mloIn 0.3s ease-out both;
         }
         .mlo-big-char {
-            font-size: clamp(90px, 22vw, 160px); line-height: 1;
-            text-shadow: 0 0 40px currentColor, 0 0 80px currentColor;
+            font-size: clamp(90px, 22vw, 150px); line-height: 1;
+            text-shadow: 0 0 40px currentColor, 0 0 80px currentColor,
+                         3px 3px 0 rgba(0,0,0,0.7);
             animation: mloBigPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        .mlo-bottom {
+            position: absolute; bottom: 140px;
+            left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            background: rgba(0,0,0,0.72); padding: 10px 18px; border-radius: 10px;
+            border: 1px solid rgba(255,20,147,0.2); white-space: nowrap;
+            animation: mloIn 0.3s 0.15s ease-out both;
         }
         @keyframes mloBigPop {
             0%   { transform: scale(0) rotate(-25deg); opacity: 0; }
@@ -332,41 +377,28 @@
             100% { transform: scale(1) rotate(0); opacity: 1; }
         }
         @keyframes mloIn {
-            from { transform: translateY(-14px); opacity: 0; }
+            from { transform: translateY(-12px); opacity: 0; }
             to   { transform: translateY(0); opacity: 1; }
         }
-        .mlo-progress-row {
-            display: flex; gap: clamp(8px, 2.5vw, 18px);
-            animation: mloIn 0.35s 0.2s ease-out both;
-        }
+        .mlo-progress-row { display: flex; gap: clamp(6px, 2vw, 14px); }
         .mlo-char-box {
-            font-size: clamp(22px, 5.5vw, 46px);
-            width: clamp(44px, 9vw, 72px); height: clamp(44px, 9vw, 72px);
+            font-size: clamp(20px, 5vw, 40px);
+            width: clamp(40px, 8vw, 64px); height: clamp(40px, 8vw, 64px);
             display: flex; align-items: center; justify-content: center;
             border: 2px solid; border-radius: 6px;
         }
         .mlo-char-box.found {
             color: var(--mc); border-color: var(--mc);
-            box-shadow: 0 0 14px var(--mc), inset 0 0 6px rgba(0,0,0,0.4);
-            text-shadow: 0 0 10px var(--mc);
+            box-shadow: 0 0 12px var(--mc); text-shadow: 0 0 8px var(--mc);
         }
-        .mlo-char-box.new-find {
-            animation: mloNewFind 0.7s ease-out;
-        }
+        .mlo-char-box.new-find { animation: mloNewFind 0.7s ease-out; }
         @keyframes mloNewFind {
             0%   { transform: scale(1); }
-            35%  { transform: scale(1.5); box-shadow: 0 0 60px var(--mc), 0 0 120px var(--mc); }
+            35%  { transform: scale(1.5); box-shadow: 0 0 50px var(--mc), 0 0 100px var(--mc); }
             100% { transform: scale(1); }
         }
         .mlo-char-box.missing { color: #1c1c2e; border-color: #1c1c2e; }
-        .mlo-count {
-            font-size: clamp(8px, 1.6vw, 10px); color: #505070; letter-spacing: 3px;
-            animation: mloIn 0.35s 0.35s ease-out both;
-        }
-        .mlo-dismiss {
-            font-size: 7px; color: #252535; letter-spacing: 2px;
-            animation: mloIn 0.35s 0.5s ease-out both;
-        }
+        .mlo-count { font-size: clamp(7px, 1.4vw, 9px); color: #606080; letter-spacing: 3px; }
 
         /* ══════════════════════════════════
            MILLO COMPLETE OVERLAY
@@ -436,27 +468,40 @@
         ══════════════════════════════════ */
         #onScreenControls {
             width: 100%; position: fixed; bottom: 0; left: 0;
-            z-index: 10; padding: 10px 14px; display: none;
-            justify-content: space-between; align-items: flex-end; pointer-events: none;
+            z-index: 10; padding: 8px 12px 12px; display: none;
+            flex-direction: column; align-items: stretch; pointer-events: none;
+            gap: 6px;
+        }
+        #mobileTopRow {
+            display: flex; justify-content: center; pointer-events: auto;
+        }
+        #mobileBottomRow {
+            display: flex; justify-content: space-between; align-items: flex-end;
         }
         .control-cluster {
-            display: flex; pointer-events: auto; background: rgba(0,0,0,0.5);
-            padding: 8px; border-radius: 8px; gap: 6px; border: 1px solid rgba(255,20,147,0.2);
+            display: flex; pointer-events: auto; background: rgba(0,0,0,0.55);
+            padding: 8px; border-radius: 10px; gap: 6px;
+            border: 1px solid rgba(255,20,147,0.25);
         }
         #leftControls { flex-direction: column; gap: 6px; }
         .dpad-row { display: flex; gap: 6px; }
-        .dpad-spacer { width: 60px; height: 60px; }
+        .dpad-spacer { width: 64px; height: 64px; }
         #rightControls { flex-direction: column; gap: 6px; align-items: center; justify-content: flex-end; }
         .control-button {
-            width: 60px; height: 60px; background: rgba(255,20,147,0.15);
-            border: 1.5px solid rgba(255,20,147,0.4); color: #FF69B4; font-size: 24px;
+            width: 64px; height: 64px; background: rgba(255,20,147,0.18);
+            border: 1.5px solid rgba(255,20,147,0.45); color: #FF69B4; font-size: 26px;
             display: flex; align-items: center; justify-content: center;
-            user-select: none; touch-action: manipulation; border-radius: 8px; cursor: pointer;
-            -webkit-tap-highlight-color: transparent; transition: background 0.06s, border-color 0.06s, transform 0.06s;
+            user-select: none; touch-action: manipulation; border-radius: 10px; cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            transition: background 0.06s, border-color 0.06s, transform 0.06s;
         }
         .control-button:active, .control-button.active {
-            background: rgba(255,20,147,0.45); border-color: rgba(255,20,147,0.85);
-            transform: scale(0.94); box-shadow: 0 0 12px rgba(255,20,147,0.35);
+            background: rgba(255,20,147,0.5); border-color: rgba(255,20,147,0.9);
+            transform: scale(0.92); box-shadow: 0 0 14px rgba(255,20,147,0.4);
+        }
+        #mobilePauseBtn {
+            width: 56px; height: 40px; font-size: 16px; border-radius: 8px;
+            pointer-events: auto;
         }
         #mapToggleBtn {
             position: fixed; top: 52px; right: 8px; z-index: 11; pointer-events: auto; display: none;
@@ -528,7 +573,10 @@
                         <div id="timerProgressBarContainer"><div id="timerProgressBar"></div></div>
                     </div>
                     <div class="hud-right">
-                        <div class="hud-cd-count" id="scoreDisplay">0 / 5</div>
+                        <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
+                            <button id="pauseBtn" class="hud-pause-btn">⏸ PAUSE</button>
+                            <div class="hud-cd-count" id="scoreDisplay">0 / 5</div>
+                        </div>
                         <div class="cd-dots-row" id="cdDotsRow"></div>
                     </div>
                 </div>
@@ -590,13 +638,23 @@
     <!-- Mobile map toggle -->
     <button id="mapToggleBtn" class="hidden">MAP</button>
 
+    <!-- PAUSE overlay -->
+    <div id="pauseOverlay">
+        <div class="pause-title">PAUSED</div>
+        <button class="pause-resume-btn" id="resumeBtn">▶ RESUME</button>
+        <div class="pause-hint">P · ESC · OR TAP TO RESUME</div>
+    </div>
+
     <!-- MILLO letter collect overlay -->
     <div id="milloLetterOverlay">
-        <div class="mlo-label">MILLO LETTER FOUND!</div>
-        <div class="mlo-big-char" id="mloBigChar">M</div>
-        <div class="mlo-progress-row" id="mloProgressRow"></div>
-        <div class="mlo-count" id="mloCount">1 / 5 LETTERS</div>
-        <div class="mlo-dismiss">AUTO-DISMISSES IN 5s</div>
+        <div class="mlo-top">
+            <div class="mlo-label">MILLO LETTER FOUND!</div>
+            <div class="mlo-big-char" id="mloBigChar">M</div>
+        </div>
+        <div class="mlo-bottom">
+            <div class="mlo-progress-row" id="mloProgressRow"></div>
+            <div class="mlo-count" id="mloCount">1 / 5</div>
+        </div>
     </div>
 
     <!-- MILLO complete overlay -->
@@ -615,21 +673,26 @@
 
     <!-- Mobile Controls -->
     <div id="onScreenControls">
-        <div id="leftControls" class="control-cluster">
-            <div class="dpad-row">
-                <div class="dpad-spacer"></div>
-                <button id="btnUp"      class="control-button">▲</button>
-                <div class="dpad-spacer"></div>
-            </div>
-            <div class="dpad-row">
-                <button id="btnStrafeL" class="control-button">◁</button>
-                <button id="btnDown"    class="control-button">▼</button>
-                <button id="btnStrafeR" class="control-button">▷</button>
-            </div>
+        <div id="mobileTopRow">
+            <button id="mobilePauseBtn" class="control-button" id="mobilePauseBtn">⏸</button>
         </div>
-        <div id="rightControls" class="control-cluster">
-            <button id="btnTurnL" class="control-button">↺</button>
-            <button id="btnTurnR" class="control-button">↻</button>
+        <div id="mobileBottomRow">
+            <div id="leftControls" class="control-cluster">
+                <div class="dpad-row">
+                    <div class="dpad-spacer"></div>
+                    <button id="btnUp"      class="control-button">▲</button>
+                    <div class="dpad-spacer"></div>
+                </div>
+                <div class="dpad-row">
+                    <button id="btnStrafeL" class="control-button">◁</button>
+                    <button id="btnDown"    class="control-button">▼</button>
+                    <button id="btnStrafeR" class="control-button">▷</button>
+                </div>
+            </div>
+            <div id="rightControls" class="control-cluster">
+                <button id="btnTurnL" class="control-button">↺</button>
+                <button id="btnTurnR" class="control-button">↻</button>
+            </div>
         </div>
     </div>
 
@@ -686,6 +749,10 @@
             gameOverHeader:          document.getElementById('gameOverHeader'),
             milloGoSection:          document.getElementById('milloGoSection'),
             milloProgressRow:        document.getElementById('milloProgressRow'),
+            pauseOverlay:            document.getElementById('pauseOverlay'),
+            pauseBtn:                document.getElementById('pauseBtn'),
+            resumeBtn:               document.getElementById('resumeBtn'),
+            mobilePauseBtn:          document.getElementById('mobilePauseBtn'),
             milloLetterOverlay:      document.getElementById('milloLetterOverlay'),
             mloBigChar:              document.getElementById('mloBigChar'),
             mloProgressRow:          document.getElementById('mloProgressRow'),
@@ -1038,7 +1105,7 @@
         const MOVE_SPEED = TILE / 9, TURN_SPEED = 0.06;
         let score = 0, cdsThisLevel = 0, timeLeft = 30;
         const INIT_TIME = 30;
-        let gameRunning = false, timerInterval = null, rafId = null;
+        let gameRunning = false, gamePaused = false, timerInterval = null, rafId = null;
         let textures = {}, particles = [], powerups = [], hazards = [];
         let lastCdTime = 0, cdCombo = 0;
         // score multiplier: 2x when MILLO unlocked
@@ -1274,7 +1341,12 @@
                 keys[e.key.toLowerCase()] = true;
                 if (e.key === 'Enter' && !gameRunning && !ui.titleScreen.classList.contains('hidden')) startGame();
                 if (e.key.toLowerCase() === 'm' && gameRunning) toggleMinimap();
+                if ((e.key.toLowerCase() === 'p' || e.key === 'Escape') && gameRunning) togglePause();
             });
+            ui.pauseBtn.addEventListener('click', () => { if(gameRunning) togglePause(); });
+            ui.resumeBtn.addEventListener('click', togglePause);
+            ui.mobilePauseBtn.addEventListener('click', () => { if(gameRunning) togglePause(); });
+            ui.pauseOverlay.addEventListener('click', e => { if(e.target===ui.pauseOverlay) togglePause(); });
             window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
             ui.titleScreen.addEventListener('pointerup', () => {
                 if (!gameRunning && !ui.titleScreen.classList.contains('hidden')) startGame();
@@ -1431,7 +1503,9 @@
             mainCtx.fillRect(0,0,ui.mainCanvas.width,ui.mainCanvas.height);
             mainCtx.imageSmoothingEnabled=false;
             const cw=ui.mainCanvas.width,ch=ui.mainCanvas.height,asp=RENDER_W/RENDER_H;
-            let dw=cw,dh=cw/asp; if(dh>ch){dh=ch;dw=ch*asp;}
+            let dw,dh;
+            if(ch>cw){ dh=ch; dw=dh*asp; } // portrait: fit height, crop sides
+            else{ dw=cw; dh=cw/asp; if(dh>ch){dh=ch;dw=dh*asp;} }
             mainCtx.drawImage(offscreen,(cw-dw)/2,(ch-dh)/2,dw,dh);
 
             // MILLO rainbow wall effect
@@ -1441,8 +1515,20 @@
             }
         }
 
+        function togglePause() {
+            if (!gameRunning) return;
+            gamePaused = !gamePaused;
+            ui.pauseOverlay.classList.toggle('active', gamePaused);
+            ui.pauseBtn.textContent = gamePaused ? '▶ RESUME' : '⏸ PAUSE';
+            if (gamePaused) {
+                if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+            } else {
+                rafId = requestAnimationFrame(gameLoop);
+            }
+        }
+
         function gameLoop(){
-            if(!gameRunning) return;
+            if(!gameRunning || gamePaused) return;
             handleInput(); render(); renderMinimap(); updateCrosshair();
             rafId = requestAnimationFrame(gameLoop);
         }
@@ -1462,7 +1548,9 @@
             if (!milloUnlocked) ui.mainCanvas.style.filter = '';
 
             resizeCanvas(); initMinimap(); minimapVisible = true;
-            score=0; timeLeft=INIT_TIME;
+            score=0; timeLeft=INIT_TIME; gamePaused=false;
+            ui.pauseOverlay.classList.remove('active');
+            ui.pauseBtn.textContent = '⏸ PAUSE';
             rollMilloSession();
 
             loadLevel(0);
@@ -1480,7 +1568,7 @@
                 rafId = requestAnimationFrame(gameLoop);
                 clearInterval(timerInterval);
                 timerInterval = setInterval(()=>{
-                    if(!FX.freeze.active&&!ui.levelTransitionOverlay.classList.contains('active')&&!ui.milloLetterOverlay.classList.contains('active')){
+                    if(!gamePaused&&!FX.freeze.active&&!ui.levelTransitionOverlay.classList.contains('active')&&!ui.milloLetterOverlay.classList.contains('active')){
                         timeLeft -= loopMult;
                         if(timeLeft<=0){timeLeft=0;gameOver();}
                         updateHUD();
@@ -1490,8 +1578,9 @@
         }
 
         function gameOver(win = false, timeBonus = 0){
-            gameRunning = false;
+            gameRunning = false; gamePaused = false;
             clearInterval(timerInterval); clearFX();
+            ui.pauseOverlay.classList.remove('active');
             clearTimeout(ui.milloLetterOverlay._hideTimer);
             ui.milloLetterOverlay.classList.remove('active');
             ui.mainCanvas.style.filter = '';
