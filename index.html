@@ -547,7 +547,7 @@
 
         <!-- ── GAME OVER ── -->
         <div id="gameOverScreen">
-            <div class="go-header">GAME OVER</div>
+            <div class="go-header" id="gameOverHeader">GAME OVER</div>
             <div class="go-sub" id="gameOverSub">You reached Level 1</div>
             <div class="go-score-label">FINAL SCORE</div>
             <div id="finalScoreDisplay">0</div>
@@ -633,21 +633,19 @@
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp }    from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp }
-            from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        const firebaseConfig = null;
-        const appId = 'millo-hit-the-wall';
-        const SCORES_COLLECTION = 'hit_the_wall_arcade_deluxe';
-        let db, auth;
-        if (firebaseConfig) {
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app); auth = getAuth(app);
-            } catch(e) { console.error("Firebase:", e); }
+    <script>
+        // ── LOCAL SCOREBOARD ──
+        const LOCAL_SCORES_KEY = 'htw_scores_v1';
+        function getLocalScores() {
+            try { return JSON.parse(localStorage.getItem(LOCAL_SCORES_KEY)) || []; } catch(e) { return []; }
+        }
+        function saveLocalScore(entry) {
+            const scores = getLocalScores();
+            scores.push(entry);
+            scores.sort((a, b) => b.score - a.score);
+            scores.splice(10);
+            localStorage.setItem(LOCAL_SCORES_KEY, JSON.stringify(scores));
+            return scores;
         }
 
         // ── DOM ──
@@ -685,6 +683,7 @@
             minimapHint:             document.getElementById('minimapHint'),
             mapToggleBtn:            document.getElementById('mapToggleBtn'),
             milloTitleBadge:         document.getElementById('milloTitleBadge'),
+            gameOverHeader:          document.getElementById('gameOverHeader'),
             milloGoSection:          document.getElementById('milloGoSection'),
             milloProgressRow:        document.getElementById('milloProgressRow'),
             milloLetterOverlay:      document.getElementById('milloLetterOverlay'),
@@ -810,37 +809,22 @@
         // ══════════════════════════════════
         const MILLO_CHARS  = ['M', 'I', 'L', 'L', 'O'];
         const MILLO_COLORS = ['#FF1493', '#00E5FF', '#AAFF00', '#FFD700', '#FF7700'];
-        const MILLO_LS_KEY = 'htw_millo_v2';
 
-        let milloCollected   = [false, false, false, false, false];
-        let milloUnlocked    = false;
-        let milloLevelMap    = {}; // { levelIdx: letterIdx } assigned each session
+        let milloCollected = [false, false, false, false, false];
+        let milloUnlocked  = false;
+        let milloLevelMap  = {}; // { levelIdx: letterIdx } assigned each game
 
-        function loadMilloState() {
-            try {
-                const raw = JSON.parse(localStorage.getItem(MILLO_LS_KEY));
-                if (Array.isArray(raw) && raw.length === 5) milloCollected = raw;
-            } catch(e) {}
-            milloUnlocked = milloCollected.every(Boolean);
-            if (milloUnlocked) ui.milloTitleBadge.classList.remove('hidden');
-        }
-
-        function saveMilloState() {
-            localStorage.setItem(MILLO_LS_KEY, JSON.stringify(milloCollected));
-        }
-
-        // Called once at startGame() — assigns every uncollected letter to a random level (0-19)
+        // Called once at startGame() — resets letters and places all 5 across levels 0-19
         function rollMilloSession() {
-            milloLevelMap = {};
-            if (milloUnlocked) return;
-            const uncollected = milloCollected.map((v, i) => (!v ? i : -1)).filter(i => i >= 0);
-            if (!uncollected.length) return;
+            milloCollected = [false, false, false, false, false];
+            milloUnlocked  = false;
+            milloLevelMap  = {};
             const levels = Array.from({length: 20}, (_, i) => i);
             for (let i = levels.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [levels[i], levels[j]] = [levels[j], levels[i]];
             }
-            uncollected.forEach((letterIdx, i) => { milloLevelMap[levels[i]] = letterIdx; });
+            [0, 1, 2, 3, 4].forEach(letterIdx => { milloLevelMap[levels[letterIdx]] = letterIdx; });
         }
 
         function spawnMilloInLevel(letterIdx) {
@@ -880,18 +864,14 @@
         function collectMilloLetter(item) {
             const idx = item.milloIdx;
             milloCollected[idx] = true;
-            saveMilloState();
             const char = MILLO_CHARS[idx], color = MILLO_COLORS[idx];
             showMsg(`◆ MILLO LETTER: ${char} ◆`);
             showFloatingScore(`★ ${char} ★`, color, 0);
             playSound(audio.goldenCd);
             spawnParticles(item.x, item.y, color + 'CC');
             showMilloLetterOverlay(idx);
-            if (milloCollected.every(Boolean) && !milloUnlocked) {
-                milloUnlocked = true;
-                saveMilloState();
-                setTimeout(showMilloComplete, 5500); // after letter overlay closes
-            }
+            // If all 5 collected mid-run, activate rainbow bonus for rest of this game
+            if (milloCollected.every(Boolean)) milloUnlocked = true;
         }
 
         function showMilloLetterOverlay(idx) {
@@ -1241,6 +1221,19 @@
             const bonus = d.clearBonus;
             timeLeft += bonus;
 
+            // ── WIN: all 20 levels cleared ──
+            if (lvlIndex >= 19) {
+                ui.transitionTitle.textContent    = 'LVL 20 CLEAR!';
+                ui.transitionSubtitle.textContent = `+${bonus}s BONUS`;
+                ui.transitionGoal.textContent     = '★ YOU BEAT THE GAME ★';
+                ui.levelTransitionOverlay.classList.add('active');
+                setTimeout(() => {
+                    ui.levelTransitionOverlay.classList.remove('active');
+                    triggerGameWin();
+                }, 2800);
+                return;
+            }
+
             ui.transitionTitle.textContent    = `LVL ${lvlIndex+1} CLEAR`;
             ui.transitionSubtitle.textContent = `+${bonus}s TIME BONUS`;
             ui.transitionGoal.textContent     = 'PREPARE...';
@@ -1259,6 +1252,19 @@
                     rafId = requestAnimationFrame(gameLoop);
                 }, 1500);
             }, 2200);
+        }
+
+        function triggerGameWin() {
+            const timeBonus = Math.floor(timeLeft);
+            score += timeBonus * getScoreMult();
+            const milloBonus = milloCollected.every(Boolean);
+
+            if (milloBonus) {
+                showMilloComplete();
+                setTimeout(() => gameOver(true, timeBonus), 7500);
+            } else {
+                setTimeout(() => gameOver(true, timeBonus), 600);
+            }
         }
 
         // ── INPUT ──
@@ -1457,8 +1463,7 @@
 
             resizeCanvas(); initMinimap(); minimapVisible = true;
             score=0; timeLeft=INIT_TIME;
-            rollMilloSession(); // roll MILLO letter for this session
-            if(auth&&!auth.currentUser) signInAnonymously(auth).catch(()=>{});
+            rollMilloSession();
 
             loadLevel(0);
             const d = currentLevelData;
@@ -1484,52 +1489,63 @@
             },1600);
         }
 
-        function gameOver(){
+        function gameOver(win = false, timeBonus = 0){
             gameRunning = false;
             clearInterval(timerInterval); clearFX();
             clearTimeout(ui.milloLetterOverlay._hideTimer);
             ui.milloLetterOverlay.classList.remove('active');
-            if (!milloUnlocked) ui.mainCanvas.style.filter = '';
+            ui.mainCanvas.style.filter = '';
             ui.gameplayScreen.classList.add('hidden');
             ui.onScreenControls.style.display='none';
             ui.crosshair.classList.add('hidden');
             ui.minimapWrapper.classList.add('hidden');
             ui.mapToggleBtn.style.display='none';
             ui.gameOverScreen.classList.add('visible');
+
+            ui.gameOverHeader.textContent = win ? 'YOU WIN!' : 'GAME OVER';
             ui.finalScoreDisplay.textContent = score;
-            ui.gameOverSub.textContent   = `You reached Level ${lvlIndex+1}`;
-            const mult = getScoreMult();
-            ui.gameOverMessage.textContent = mult > 1 ? `★ MILLO 2x SCORE ACTIVE ★` : '';
+            if (win) {
+                ui.gameOverSub.textContent = 'All 20 levels cleared!';
+                const milloBonus = milloCollected.every(Boolean);
+                const lines = [`+${timeBonus}s time bonus added to score`];
+                if (milloBonus) lines.push('★ MILLO COMPLETE BONUS ★');
+                if (getScoreMult() > 1) lines.push('★ MILLO 2× SCORE ACTIVE ★');
+                ui.gameOverMessage.textContent = lines.join('  ·  ');
+            } else {
+                ui.gameOverSub.textContent = `You reached Level ${lvlIndex+1}`;
+                ui.gameOverMessage.textContent = getScoreMult() > 1 ? '★ MILLO 2× SCORE ACTIVE ★' : '';
+            }
             updateMilloGoDisplay();
             playMusic(audio.end);
             ui.initialsForm.style.display='flex';
             ui.scoreboardSection.classList.remove('visible');
         }
 
-        // ── FIREBASE ──
-        ui.submitScoreButton.addEventListener('click', async () => {
-            if(!db||!auth){showScoreboard(null);return;}
-            const initials=(ui.initialsInput.value.trim().toUpperCase().substring(0,3)||'AAA');
-            try{ await addDoc(collection(db,`/artifacts/${appId}/public/data/${SCORES_COLLECTION}`),{score,level:lvlIndex+1,playerName:initials,timestamp:serverTimestamp()}); }catch(e){console.error(e);}
-            showScoreboard(initials);
+        // ── LOCAL SCORES ──
+        ui.submitScoreButton.addEventListener('click', () => {
+            const initials = (ui.initialsInput.value.trim().toUpperCase().substring(0,3) || 'AAA');
+            const scores = saveLocalScore({ score, level: lvlIndex+1, playerName: initials });
+            showScoreboard(scores);
         });
-        async function showScoreboard(initials){
-            ui.initialsForm.style.display='none'; ui.scoreboardSection.classList.add('visible');
-            ui.scoreboardList.innerHTML='<li style="color:#606080">Loading...</li>';
-            if(!db){ui.scoreboardList.innerHTML='<li style="color:#606080">Offline</li>';return;}
-            try{
-                const q=query(collection(db,`/artifacts/${appId}/public/data/${SCORES_COLLECTION}`),orderBy('score','desc'),limit(5));
-                const snap=await getDocs(q); ui.scoreboardList.innerHTML='';
-                snap.forEach(d=>{ const v=d.data(); const li=document.createElement('li'); li.innerHTML=`<span>${v.playerName} <span style="color:#606080">Lv${v.level}</span></span><span class="score-value">${v.score}</span>`; ui.scoreboardList.appendChild(li); });
-                if(snap.empty) ui.scoreboardList.innerHTML='<li style="color:#606080">No scores yet.</li>';
-            }catch(e){console.error(e);}
+        function showScoreboard(scores){
+            ui.initialsForm.style.display='none';
+            ui.scoreboardSection.classList.add('visible');
+            ui.scoreboardList.innerHTML = '';
+            if (!scores || !scores.length) {
+                ui.scoreboardList.innerHTML = '<li style="color:#606080">No scores yet.</li>';
+                return;
+            }
+            scores.slice(0,10).forEach(v => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${v.playerName} <span style="color:#606080">Lv${v.level}</span></span><span class="score-value">${v.score}</span>`;
+                ui.scoreboardList.appendChild(li);
+            });
         }
         ui.restartButton.addEventListener('click',()=>{ ui.gameOverScreen.classList.remove('visible'); ui.titleScreen.classList.remove('hidden'); playMusic(audio.menu); });
 
         window.addEventListener('resize',()=>{ if(!ui.gameplayScreen.classList.contains('hidden')){ resizeCanvas(); if(!gameRunning)render(); } });
 
         // ── INIT ──
-        loadMilloState();
         setupInput();
         buildSprites();
         document.body.addEventListener('click',()=>{ if(!gameRunning&&!ui.gameOverScreen.classList.contains('visible')) playMusic(audio.menu); },{once:true});
