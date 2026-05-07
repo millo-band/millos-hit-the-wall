@@ -82,12 +82,15 @@
         }
         @keyframes blinkPrompt { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
         #milloTitleBadge {
-            font-size: 8px; color: #FF1493; letter-spacing: 3px;
-            text-shadow: 0 0 10px #FF1493, 0 0 20px #FF69B4;
-            animation: milloRainbow 3s linear infinite;
+            font-size: 8px; color: #00FF41; letter-spacing: 3px;
+            text-shadow: 0 0 10px #00FF41, 0 0 20px #00FF41;
+            animation: milloGreenPulse 1.8s ease-in-out infinite;
             margin-bottom: 10px;
         }
-        @keyframes milloRainbow { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+        @keyframes milloGreenPulse {
+            0%, 100% { text-shadow: 0 0 10px #00FF41, 0 0 20px #00FF41; opacity: 1; }
+            50% { text-shadow: 0 0 20px #00FF41, 0 0 50px #00FF41, 0 0 80px #00FF41; opacity: 0.85; }
+        }
         .title-controls {
             font-size: 7px; color: #505070; letter-spacing: 1px; line-height: 2;
         }
@@ -312,6 +315,52 @@
         #scoreboard li .score-value { color: #FFFF00; }
 
         /* ══════════════════════════════════
+           WIN OVERLAY
+        ══════════════════════════════════ */
+        #winOverlay {
+            position: fixed; inset: 0; z-index: 290;
+            background: #000;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.6s ease;
+            text-align: center; gap: clamp(10px, 2.5vh, 20px); overflow: hidden;
+        }
+        #winOverlay.active { opacity: 1; pointer-events: all; }
+        .win-flash { position: absolute; inset: 0; background: #fff; pointer-events: none; animation: mccFlash 0.5s ease-out forwards; }
+        .win-title {
+            font-size: clamp(64px, 18vw, 130px); color: #FFFF00; line-height: 1;
+            text-shadow: 5px 5px 0 #B8860B, 0 0 50px #FFD700, 0 0 100px #FF8C00;
+            animation: winBounce 0.8s 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+            letter-spacing: 4px; z-index: 1;
+        }
+        .win-cleared {
+            font-size: clamp(13px, 3.5vw, 24px); color: #FF1493;
+            text-shadow: 2px 2px 0 #8B0057, 0 0 20px rgba(255,20,147,0.8);
+            animation: winFlyIn 0.5s 1.1s ease-out both; z-index: 1;
+            letter-spacing: 3px;
+        }
+        .win-divider {
+            width: 300px; max-width: 80vw; height: 2px;
+            background: linear-gradient(90deg, transparent, #FFFF00, #FF1493, transparent);
+            animation: winFlyIn 0.5s 1.4s ease-out both; z-index: 1; margin: 4px 0;
+        }
+        .win-bonus {
+            font-size: clamp(8px, 1.8vw, 11px); color: #A0C0FF; line-height: 2.4;
+            animation: winFlyIn 0.5s 1.7s ease-out both; z-index: 1;
+        }
+        @keyframes winBounce {
+            0%   { transform: scale(0.1) rotate(-12deg); opacity: 0; }
+            55%  { transform: scale(1.18) rotate(4deg); opacity: 1; }
+            75%  { transform: scale(0.94) rotate(-1deg); }
+            100% { transform: scale(1) rotate(0); opacity: 1; }
+        }
+        @keyframes winFlyIn {
+            from { transform: translateY(28px); opacity: 0; }
+            to   { transform: translateY(0); opacity: 1; }
+        }
+
+        /* ══════════════════════════════════
            PAUSE OVERLAY
         ══════════════════════════════════ */
         #pauseOverlay {
@@ -352,8 +401,8 @@
             display: flex; flex-direction: column; align-items: center; gap: 6px;
         }
         .mlo-label {
-            font-size: clamp(8px, 1.8vw, 11px); color: #FF69B4; letter-spacing: 5px;
-            text-shadow: 0 0 8px #FF1493;
+            font-size: clamp(8px, 1.8vw, 11px); color: #00FF41; letter-spacing: 5px;
+            text-shadow: 0 0 8px #00FF41;
             background: rgba(0,0,0,0.65); padding: 4px 14px; border-radius: 20px;
             animation: mloIn 0.3s ease-out both;
         }
@@ -364,11 +413,11 @@
             animation: mloBigPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
         }
         .mlo-bottom {
-            position: absolute; bottom: 140px;
-            left: 50%; transform: translateX(-50%);
+            position: fixed; bottom: 0; left: 0; width: 100%;
             display: flex; flex-direction: column; align-items: center; gap: 8px;
-            background: rgba(0,0,0,0.72); padding: 10px 18px; border-radius: 10px;
-            border: 1px solid rgba(255,20,147,0.2); white-space: nowrap;
+            background: rgba(0,10,0,0.88); padding: 14px 20px 20px;
+            border-top: 2px solid rgba(0,255,65,0.4);
+            box-shadow: 0 -8px 40px rgba(0,255,65,0.15);
             animation: mloIn 0.3s 0.15s ease-out both;
         }
         @keyframes mloBigPop {
@@ -380,25 +429,38 @@
             from { transform: translateY(-12px); opacity: 0; }
             to   { transform: translateY(0); opacity: 1; }
         }
-        .mlo-progress-row { display: flex; gap: clamp(6px, 2vw, 14px); }
+        .mlo-progress-row { display: flex; width: 100%; justify-content: space-around; max-width: 600px; }
         .mlo-char-box {
-            font-size: clamp(20px, 5vw, 40px);
-            width: clamp(40px, 8vw, 64px); height: clamp(40px, 8vw, 64px);
+            font-size: clamp(28px, 7vw, 56px);
+            flex: 1; max-width: 100px;
             display: flex; align-items: center; justify-content: center;
-            border: 2px solid; border-radius: 6px;
+            border: 2px solid; border-radius: 6px; padding: 8px 0;
         }
         .mlo-char-box.found {
-            color: var(--mc); border-color: var(--mc);
-            box-shadow: 0 0 12px var(--mc); text-shadow: 0 0 8px var(--mc);
+            color: #00FF41; border-color: #00FF41;
+            box-shadow: 0 0 18px #00FF41, 0 0 40px rgba(0,255,65,0.4);
+            text-shadow: 0 0 12px #00FF41, 0 0 30px #00FF41;
         }
         .mlo-char-box.new-find { animation: mloNewFind 0.7s ease-out; }
         @keyframes mloNewFind {
             0%   { transform: scale(1); }
-            35%  { transform: scale(1.5); box-shadow: 0 0 50px var(--mc), 0 0 100px var(--mc); }
+            35%  { transform: scale(1.5); box-shadow: 0 0 60px #00FF41, 0 0 120px #00FF41; }
             100% { transform: scale(1); }
         }
-        .mlo-char-box.missing { color: #1c1c2e; border-color: #1c1c2e; }
-        .mlo-count { font-size: clamp(7px, 1.4vw, 9px); color: #606080; letter-spacing: 3px; }
+        .mlo-char-box.missing { color: #0a1a0a; border-color: #0a1a0a; }
+        .mlo-count { font-size: clamp(7px, 1.4vw, 9px); color: #00AA30; letter-spacing: 3px; }
+        /* Green flash on letter collect */
+        #milloGreenFlash {
+            position: fixed; inset: 0; z-index: 350; pointer-events: none;
+            background: radial-gradient(ellipse at center, rgba(0,255,65,0.55) 0%, rgba(0,255,65,0.15) 60%, transparent 100%);
+            opacity: 0;
+        }
+        #milloGreenFlash.flash { animation: milloFlashGreen 1.1s ease-out forwards; }
+        @keyframes milloFlashGreen {
+            0%   { opacity: 1; }
+            30%  { opacity: 0.8; }
+            100% { opacity: 0; }
+        }
 
         /* ══════════════════════════════════
            MILLO COMPLETE OVERLAY
@@ -413,31 +475,31 @@
         }
         #milloCompleteOverlay.active { opacity: 1; pointer-events: all; }
         .mcc-bg-flash {
-            position: absolute; inset: 0; background: #fff; pointer-events: none;
+            position: absolute; inset: 0; background: #00FF41; pointer-events: none;
             animation: mccFlash 0.5s ease-out forwards;
         }
         @keyframes mccFlash { from { opacity: 1; } to { opacity: 0; } }
         .mcc-chars { display: flex; gap: clamp(6px, 2.5vw, 18px); z-index: 1; }
         .mcc-char {
             font-size: clamp(38px, 9vw, 76px);
-            display: inline-block;
-            text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
-            animation: mccCharIn 0.55s cubic-bezier(0.34,1.56,0.64,1) both, milloRainbow 1.5s linear infinite;
+            display: inline-block; color: #00FF41;
+            text-shadow: 0 0 20px #00FF41, 0 0 50px #00FF41, 0 0 100px #00FF41;
+            animation: mccCharIn 0.55s cubic-bezier(0.34,1.56,0.64,1) both;
         }
-        .mcc-char:nth-child(1) { animation-delay: 0.15s, 0s; }
-        .mcc-char:nth-child(2) { animation-delay: 0.3s,  0.3s; }
-        .mcc-char:nth-child(3) { animation-delay: 0.45s, 0.6s; }
-        .mcc-char:nth-child(4) { animation-delay: 0.6s,  0.9s; }
-        .mcc-char:nth-child(5) { animation-delay: 0.75s, 1.2s; }
+        .mcc-char:nth-child(1) { animation-delay: 0.15s; }
+        .mcc-char:nth-child(2) { animation-delay: 0.3s; }
+        .mcc-char:nth-child(3) { animation-delay: 0.45s; }
+        .mcc-char:nth-child(4) { animation-delay: 0.6s; }
+        .mcc-char:nth-child(5) { animation-delay: 0.75s; }
         @keyframes mccCharIn {
             0%   { transform: scale(0) rotate(-30deg) translateY(60px); opacity: 0; }
             65%  { transform: scale(1.35) rotate(6deg) translateY(-8px); opacity: 1; }
             100% { transform: scale(1) rotate(0) translateY(0); opacity: 1; }
         }
         .mcc-title {
-            font-size: clamp(38px, 9vw, 70px); color: #FF1493;
-            text-shadow: 0 0 30px #FF1493, 0 0 60px #FF69B4, 0 0 100px #FF1493;
-            animation: milloRainbow 0.9s linear infinite, mccFlyIn 0.6s 1.1s ease-out both;
+            font-size: clamp(38px, 9vw, 70px); color: #00FF41;
+            text-shadow: 0 0 30px #00FF41, 0 0 60px #00FF41, 0 0 100px #00FF41;
+            animation: mccFlyIn 0.6s 1.1s ease-out both;
             letter-spacing: 4px; z-index: 1;
         }
         .mcc-sub {
@@ -638,12 +700,23 @@
     <!-- Mobile map toggle -->
     <button id="mapToggleBtn" class="hidden">MAP</button>
 
+    <!-- WIN overlay -->
+    <div id="winOverlay">
+        <div class="win-title">YOU WIN!</div>
+        <div class="win-cleared">ALL 10 LEVELS CLEARED</div>
+        <div class="win-divider"></div>
+        <div class="win-bonus" id="winBonusText"></div>
+    </div>
+
     <!-- PAUSE overlay -->
     <div id="pauseOverlay">
         <div class="pause-title">PAUSED</div>
         <button class="pause-resume-btn" id="resumeBtn">▶ RESUME</button>
         <div class="pause-hint">P · ESC · OR TAP TO RESUME</div>
     </div>
+
+    <!-- Green flash on MILLO letter collect -->
+    <div id="milloGreenFlash"></div>
 
     <!-- MILLO letter collect overlay -->
     <div id="milloLetterOverlay">
@@ -749,6 +822,8 @@
             gameOverHeader:          document.getElementById('gameOverHeader'),
             milloGoSection:          document.getElementById('milloGoSection'),
             milloProgressRow:        document.getElementById('milloProgressRow'),
+            winOverlay:              document.getElementById('winOverlay'),
+            winBonusText:            document.getElementById('winBonusText'),
             pauseOverlay:            document.getElementById('pauseOverlay'),
             pauseBtn:                document.getElementById('pauseBtn'),
             resumeBtn:               document.getElementById('resumeBtn'),
@@ -821,13 +896,14 @@
             }
 
             // Items
-            for (const item of [...powerups, ...hazards]) {
+            for (const item of [...powerups, ...hazards, ...ufos]) {
                 if (!item.active) continue;
                 const tx = Math.floor(item.x / TILE) - ox, ty = Math.floor(item.y / TILE) - oy;
                 if (tx < 0 || tx >= MMAP_VW || ty < 0 || ty >= MMAP_VH) continue;
                 const cx = tx * MMAP_TILE + MMAP_TILE / 2, cy = ty * MMAP_TILE + MMAP_TILE / 2;
                 mc.fillStyle = item.type === 'cd' ? (item.golden ? '#FFD700' : '#FFFF55') :
                                item.type === 'millo' ? '#FFFFFF' :
+                               item.type === 'ufo' ? '#FF91AF' :
                                (item.type === 'curse' || item.type === 'goo') ? '#FF4136' : '#00E5FF';
                 mc.beginPath();
                 mc.arc(cx, cy, item.type === 'millo' ? MMAP_TILE * 0.5 : MMAP_TILE * 0.38, 0, Math.PI * 2);
@@ -875,7 +951,7 @@
         //  MILLO EASTER EGG SYSTEM
         // ══════════════════════════════════
         const MILLO_CHARS  = ['M', 'I', 'L', 'L', 'O'];
-        const MILLO_COLORS = ['#FF1493', '#00E5FF', '#AAFF00', '#FFD700', '#FF7700'];
+        const MILLO_COLORS = ['#00FF41', '#00FF41', '#00FF41', '#00FF41', '#00FF41'];
 
         let milloCollected = [false, false, false, false, false];
         let milloUnlocked  = false;
@@ -937,8 +1013,12 @@
             playSound(audio.goldenCd);
             spawnParticles(item.x, item.y, color + 'CC');
             showMilloLetterOverlay(idx);
-            // If all 5 collected mid-run, activate rainbow bonus for rest of this game
-            if (milloCollected.every(Boolean)) milloUnlocked = true;
+            // If all 5 collected mid-run, activate baker-miller pink sky + UFOs
+            if (milloCollected.every(Boolean)) {
+                milloUnlocked = true;
+                textures.milloCeiling = mkMilloSky();
+                spawnUFOs();
+            }
         }
 
         function showMilloLetterOverlay(idx) {
@@ -966,6 +1046,12 @@
             const found = milloCollected.filter(Boolean).length;
             ui.mloCount.textContent = `${found} / 5 LETTERS`;
 
+            // Green flash across screen
+            const gf = document.getElementById('milloGreenFlash');
+            gf.classList.remove('flash');
+            void gf.offsetWidth; // reflow to restart animation
+            gf.classList.add('flash');
+
             ui.milloLetterOverlay.classList.add('active');
             clearTimeout(ui.milloLetterOverlay._hideTimer);
             ui.milloLetterOverlay._hideTimer = setTimeout(() =>
@@ -980,7 +1066,7 @@
             ov.insertBefore(flash, ov.firstChild);
             setTimeout(() => flash.remove(), 600);
             // Shooting stars
-            const starColors = ['#FF1493','#00E5FF','#AAFF00','#FFD700','#FF7700','#fff'];
+            const starColors = ['#00FF41','#00CC33','#00FF90','#AAFFCC','#00FF41','#fff'];
             for (let i = 0; i < 30; i++) {
                 const s = document.createElement('div');
                 s.className = 'mcc-star';
@@ -1057,11 +1143,11 @@
             const fogG = Math.round(Math.max(0, Math.cos(rad - 2.094) * 9 + 7));
             const fogB = Math.round(Math.max(0, Math.cos(rad + 2.094) * 13 + 12));
 
-            // Scaling difficulty
-            const targetCDs = 5 + idx * 2;                              // grows by 2 per level
-            const cdBonus   = Math.max(2, 5 - Math.floor(idx / 4));     // starts 5s, drops to 2s
-            const goldBonus = Math.max(4, 10 - Math.floor(idx / 4));    // starts 10s, drops to 4s
-            const clearBonus= Math.max(8, 18 - Math.floor(idx / 2));    // level-clear time bonus
+            // Scaling difficulty across 20 levels
+            const targetCDs = 5 + idx;                                   // grows by 1 per level
+            const cdBonus   = Math.max(4, 7 - Math.floor(idx / 5));     // 7s early, tapers to 4s
+            const goldBonus = 10;                                        // fixed +10s per golden CD
+            const clearBonus= Math.max(8, 22 - Math.floor(idx / 2));    // starts at 22s, floors at 8s
 
             // Maze grows every 2 levels
             const grow = Math.floor(idx / 2);
@@ -1104,9 +1190,9 @@
         let player = {x:0, y:0, angle:0};
         const MOVE_SPEED = TILE / 9, TURN_SPEED = 0.06;
         let score = 0, cdsThisLevel = 0, timeLeft = 30;
-        const INIT_TIME = 30;
+        const INIT_TIME = 40;
         let gameRunning = false, gamePaused = false, timerInterval = null, rafId = null;
-        let textures = {}, particles = [], powerups = [], hazards = [];
+        let textures = {}, particles = [], powerups = [], hazards = [], ufos = [];
         let lastCdTime = 0, cdCombo = 0;
         // score multiplier: 2x when MILLO unlocked
         const getScoreMult = () => milloUnlocked ? 2 : 1;
@@ -1149,8 +1235,44 @@
             return cv;
         }
 
+        function mkUFO(){
+            const cv=document.createElement('canvas'); cv.width=cv.height=TILE; const cx=cv.getContext('2d');
+            // Saucer body
+            const g=cx.createRadialGradient(32,36,2,32,36,28); g.addColorStop(0,'#DDDDF0'); g.addColorStop(0.6,'#9090B8'); g.addColorStop(1,'#505070');
+            cx.fillStyle=g; cx.beginPath(); cx.ellipse(32,38,26,11,0,0,Math.PI*2); cx.fill();
+            // Dome
+            const dg=cx.createRadialGradient(28,22,1,32,24,13); dg.addColorStop(0,'rgba(180,255,240,0.92)'); dg.addColorStop(0.5,'rgba(80,200,255,0.55)'); dg.addColorStop(1,'rgba(0,80,180,0.15)');
+            cx.fillStyle=dg; cx.beginPath(); cx.ellipse(32,26,13,11,0,Math.PI,Math.PI*2); cx.fill();
+            // Light ring (baker-miller pink + green pulses)
+            const lc=['#FF91AF','#00FF88','#FF91AF','#00FFEE','#FF91AF','#FFFF44','#FF91AF','#FF7700'];
+            for(let i=0;i<lc.length;i++){ const a=(i/lc.length)*Math.PI*2, lx=32+Math.cos(a)*23, ly=38+Math.sin(a)*8; cx.fillStyle=lc[i]; cx.shadowColor=lc[i]; cx.shadowBlur=7; cx.beginPath(); cx.arc(lx,ly,2.5,0,Math.PI*2); cx.fill(); }
+            cx.shadowBlur=0;
+            // Beam
+            const bg=cx.createLinearGradient(32,46,32,64); bg.addColorStop(0,'rgba(255,145,175,0.55)'); bg.addColorStop(1,'rgba(255,145,175,0)');
+            cx.fillStyle=bg; cx.beginPath(); cx.ellipse(32,52,9,13,0,0,Math.PI*2); cx.fill();
+            return cv;
+        }
+        function mkMilloSky(){
+            const cv=document.createElement('canvas'); cv.width=TILE*2; cv.height=TILE; const cx=cv.getContext('2d');
+            const g=cx.createLinearGradient(0,0,0,TILE); g.addColorStop(0,'#FF91AF'); g.addColorStop(0.65,'#FFB8CE'); g.addColorStop(1,'#FFCEDA');
+            cx.fillStyle=g; cx.fillRect(0,0,cv.width,cv.height);
+            // Alien stars (green-tinted)
+            for(let i=0;i<90;i++){ const x=Math.random()*cv.width,y=Math.random()*cv.height*0.85,s=Math.random()*1.4+0.3; cx.fillStyle=`rgba(${Math.floor(Math.random()*80+80)},255,${Math.floor(Math.random()*80+160)},${Math.random()*0.85+0.15})`; cx.beginPath(); cx.arc(x,y,s,0,Math.PI*2); cx.fill(); }
+            return cv;
+        }
+
+        function spawnUFOs(){
+            const tiles=emptyTiles(); if(!tiles.length) return;
+            const count=3+Math.floor(Math.random()*3);
+            for(let i=0;i<count&&tiles.length;i++){
+                const idx=Math.floor(Math.random()*tiles.length); const t=tiles.splice(idx,1)[0];
+                ufos.push({x:(t.x+.5)*TILE,y:(t.y+.5)*TILE,active:true,type:'ufo'});
+            }
+        }
+
         function buildSprites(){
             textures.cd=mkCD(false); textures.goldenCd=mkCD(true);
+            textures.ufo=mkUFO();
             const xr=document.createElement('canvas');xr.width=xr.height=TILE;const xc=xr.getContext('2d');
             xc.strokeStyle='#40E0D0';xc.lineWidth=3; xc.beginPath();xc.arc(20,32,12,0,Math.PI*2);xc.stroke(); xc.beginPath();xc.arc(44,32,12,0,Math.PI*2);xc.stroke();
             xc.fillStyle='rgba(173,216,230,0.45)'; xc.beginPath();xc.arc(20,32,10,0,Math.PI*2);xc.fill(); xc.beginPath();xc.arc(44,32,10,0,Math.PI*2);xc.fill(); textures.xray=xr;
@@ -1250,7 +1372,12 @@
         function activateFX(type){
             if(FX[type].id) clearTimeout(FX[type].id);
             FX[type].active = true; FX[type].startTime = Date.now();
-            FX[type].id = setTimeout(()=>{ FX[type].active=false; FX[type].startTime=0; updateHUD(); }, FX[type].dur);
+            if(type === 'freeze'){
+                // Stays active until next CD collected — no timeout
+                FX[type].id = null;
+            } else {
+                FX[type].id = setTimeout(()=>{ FX[type].active=false; FX[type].startTime=0; updateHUD(); }, FX[type].dur);
+            }
             updateHUD();
         }
         function clearFX(){ for(const k in FX){ FX[k].active=false; FX[k].startTime=0; clearTimeout(FX[k].id); } }
@@ -1269,7 +1396,7 @@
             MAP_W = mapData[0].length; MAP_H = mapData.length;
 
             loadLevelGfx(currentLevelData);
-            powerups=[]; hazards=[]; particles=[]; cdsThisLevel=0;
+            powerups=[]; hazards=[]; particles=[]; ufos=[]; cdsThisLevel=0;
             clearFX(); cdCombo=0;
 
             outer: for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++)
@@ -1279,6 +1406,7 @@
             if (milloLevelMap[idx] !== undefined) spawnMilloInLevel(milloLevelMap[idx]);
 
             spawnCycle();
+            if (milloUnlocked) spawnUFOs();
             updateHUD();
         }
 
@@ -1321,16 +1449,60 @@
             }, 2200);
         }
 
+        function showWinCelebration(timeBonus) {
+            const ov = ui.winOverlay;
+            const flash = document.createElement('div');
+            flash.className = 'win-flash';
+            ov.insertBefore(flash, ov.firstChild);
+            setTimeout(() => flash.remove(), 600);
+
+            const starColors = ['#FFFF00','#FF1493','#00E5FF','#AAFF00','#FF7700','#fff'];
+            for (let i = 0; i < 40; i++) {
+                const s = document.createElement('div');
+                s.className = 'mcc-star';
+                s.style.background = starColors[i % starColors.length];
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 200 + Math.random() * 600;
+                s.style.setProperty('--sx', `${Math.random()*100}vw`);
+                s.style.setProperty('--sy', `${Math.random()*100}vh`);
+                s.style.setProperty('--ex', `${Math.cos(angle)*dist}px`);
+                s.style.setProperty('--ey', `${Math.sin(angle)*dist}px`);
+                s.style.setProperty('--dur',   `${0.6 + Math.random()*2}s`);
+                s.style.setProperty('--delay', `${Math.random()*3}s`);
+                ov.appendChild(s);
+            }
+
+            const lines = [`+${timeBonus}s TIME BONUS ADDED TO SCORE`];
+            if (getScoreMult() > 1) lines.push('★ MILLO 2x SCORE ACTIVE ★');
+            if (milloCollected.every(Boolean)) lines.push('★ ALL MILLO LETTERS COLLECTED ★');
+            ui.winBonusText.textContent = lines.join('\n');
+            ui.winBonusText.style.whiteSpace = 'pre-line';
+
+            ov.classList.add('active');
+        }
+
         function triggerGameWin() {
             const timeBonus = Math.floor(timeLeft);
             score += timeBonus * getScoreMult();
             const milloBonus = milloCollected.every(Boolean);
 
+            showWinCelebration(timeBonus);
+
             if (milloBonus) {
-                showMilloComplete();
-                setTimeout(() => gameOver(true, timeBonus), 7500);
+                // Win celebration → MILLO overlay → game over
+                setTimeout(() => {
+                    ui.winOverlay.classList.remove('active');
+                    ui.winOverlay.querySelectorAll('.mcc-star,.win-flash').forEach(el => el.remove());
+                    showMilloComplete();
+                }, 4500);
+                setTimeout(() => gameOver(true, timeBonus), 12000);
             } else {
-                setTimeout(() => gameOver(true, timeBonus), 600);
+                // Win celebration → game over
+                setTimeout(() => {
+                    ui.winOverlay.classList.remove('active');
+                    ui.winOverlay.querySelectorAll('.mcc-star,.win-flash').forEach(el => el.remove());
+                    gameOver(true, timeBonus);
+                }, 5500);
             }
         }
 
@@ -1397,6 +1569,7 @@
                         if(e.type==='cd'){
                             const now=Date.now();
                             if(now-lastCdTime<5000){cdCombo++;}else{cdCombo=1;} lastCdTime=now;
+                            if(FX.freeze.active){ FX.freeze.active=false; FX.freeze.startTime=0; updateHUD(); }
                             if(e.golden){
                                 score+=5*mult; cdsThisLevel++; timeLeft+=d.goldBonus;
                                 showMsg(`GOLDEN CD! +${d.goldBonus}s!`);
@@ -1427,7 +1600,7 @@
         function render(){
             if(!gameRunning) return;
             const hz=RENDER_H/2;
-            oCtx.drawImage(textures.ceiling,0,0,RENDER_W,hz);
+            oCtx.drawImage(milloUnlocked&&textures.milloCeiling?textures.milloCeiling:textures.ceiling,0,0,RENDER_W,hz);
             oCtx.drawImage(textures.floor,  0,hz,RENDER_W,RENDER_H-hz);
             const {r,g,b}=currentLevelData.fog;
 
@@ -1453,7 +1626,7 @@
             }
 
             // Sprites
-            const ents=[...powerups,...hazards].filter(e=>e.active);
+            const ents=[...powerups,...hazards,...ufos].filter(e=>e.active);
             ents.sort((a,b)=>Math.hypot(b.x-player.x,b.y-player.y)-Math.hypot(a.x-player.x,a.y-player.y));
             for(const item of ents){
                 const dx=item.x-player.x,dy=item.y-player.y,dist=Math.hypot(dx,dy);
@@ -1463,16 +1636,18 @@
                 let spr=textures[item.type]||textures.cd;
                 if(item.type==='cd'&&item.golden) spr=textures.goldenCd;
                 if(item.type==='millo') spr=textures.milloActive||textures.cd;
-                const sc=item.type==='goo'?.5:item.type==='cd'?.65:item.type==='millo'?.8:.55;
+                if(item.type==='ufo') spr=textures.ufo;
+                const sc=item.type==='goo'?.5:item.type==='cd'?.65:item.type==='millo'?.8:item.type==='ufo'?.7:.55;
                 const ss=Math.min(RENDER_H,(TILE/dist)*RENDER_H*sc);
                 const sx=RENDER_W/2+(sa/(FOV/2))*(RENDER_W/2)-ss/2;
                 let sy=hz-ss/2;
                 if(item.type==='goo') sy=hz+ss*.1;
-                if(item.type==='millo') sy-=Math.sin(Date.now()/400)*3; // bob
+                if(item.type==='millo') sy-=Math.sin(Date.now()/400)*3;
+                if(item.type==='ufo') sy=hz-ss*.8+Math.sin(Date.now()/500+item.x)*4;
                 if(sx+ss<=0||sx>=RENDER_W) continue;
                 const proj=dist*Math.cos(sa);
                 const ri=Math.floor(Math.max(0,Math.min(RAYS-1,sx+ss/2)));
-                const vis=FX.xray.active||(FX.pathfinder.active&&item.type==='cd')||item.type==='millo'||proj<wallDist[ri]+TILE*.1;
+                const vis=FX.xray.active||(FX.pathfinder.active&&item.type==='cd')||item.type==='millo'||item.type==='ufo'||proj<wallDist[ri]+TILE*.1;
                 if(!vis) continue;
                 oCtx.globalAlpha=Math.max(.18,1-dist/(TILE*15));
                 let ds=ss;
@@ -1480,6 +1655,9 @@
                 if(item.type==='millo'){
                     ds*=(Math.sin(Date.now()/300)*.12+1);
                     oCtx.shadowColor=MILLO_COLORS[item.milloIdx]; oCtx.shadowBlur=15;
+                }
+                if(item.type==='ufo'){
+                    oCtx.shadowColor='#FF91AF'; oCtx.shadowBlur=10;
                 }
                 if(item.type==='goo') oCtx.drawImage(spr,sx,sy,ss,ss*.5);
                 else oCtx.drawImage(spr,sx-(ds-ss)/2,sy-(ds-ss)/2,ds,ds);
@@ -1508,11 +1686,6 @@
             else{ dw=cw; dh=cw/asp; if(dh>ch){dh=ch;dw=dh*asp;} }
             mainCtx.drawImage(offscreen,(cw-dw)/2,(ch-dh)/2,dw,dh);
 
-            // MILLO rainbow wall effect
-            if(milloUnlocked){
-                const hueShift = (Date.now()/80)%360;
-                ui.mainCanvas.style.filter = `hue-rotate(${hueShift.toFixed(0)}deg) saturate(1.4)`;
-            }
         }
 
         function togglePause() {
@@ -1545,7 +1718,7 @@
             ui.crosshair.classList.remove('hidden');
             ui.minimapHint.textContent = isTouch ? 'TAP' : 'M';
             if (isTouch) { ui.mapToggleBtn.classList.remove('hidden'); ui.mapToggleBtn.style.display = 'block'; }
-            if (!milloUnlocked) ui.mainCanvas.style.filter = '';
+            ui.mainCanvas.style.filter = '';
 
             resizeCanvas(); initMinimap(); minimapVisible = true;
             score=0; timeLeft=INIT_TIME; gamePaused=false;
