@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Millo's "Hit the Wall"</title>
+    <meta name="theme-color" content="#000000">
+    <meta property="og:title" content="Millo's &quot;Hit the Wall&quot;">
+    <meta property="og:description" content="A retro neon raycaster maze arcade game. Collect CDs, dodge curses, beat the clock across 20 levels.">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23FFD700'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='%23202030' stroke-width='2'/%3E%3Ccircle cx='32' cy='32' r='9' fill='%23202030'/%3E%3C/svg%3E">
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -553,7 +557,7 @@
             width: 64px; height: 64px; background: rgba(255,20,147,0.18);
             border: 1.5px solid rgba(255,20,147,0.45); color: #FF69B4; font-size: 26px;
             display: flex; align-items: center; justify-content: center;
-            user-select: none; touch-action: manipulation; border-radius: 10px; cursor: pointer;
+            user-select: none; touch-action: none; border-radius: 10px; cursor: pointer;
             -webkit-tap-highlight-color: transparent;
             transition: background 0.06s, border-color 0.06s, transform 0.06s;
         }
@@ -579,6 +583,48 @@
             .hud-lvl-speed { display: none; }
             #minimapWrapper { transform: scale(0.72); transform-origin: top right; top: 48px; }
             .cd-dots-row { max-width: 70px; }
+            #mapToggleBtn { top: 128px; }
+        }
+
+        /* ══════════════════════════════════
+           HAZARD / PICKUP SCREEN FEEDBACK
+        ══════════════════════════════════ */
+        #gooVignette {
+            position: fixed; inset: 0; z-index: 8; pointer-events: none;
+            background: radial-gradient(ellipse at center, transparent 40%, rgba(60,140,20,0.55) 100%);
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        #gooVignette.active { opacity: 1; }
+        #curseFlash {
+            position: fixed; inset: 0; z-index: 350; pointer-events: none;
+            background: #9B30FF; opacity: 0;
+        }
+        #curseFlash.flash { animation: curseFlashAnim 0.15s ease-out forwards; }
+        @keyframes curseFlashAnim { 0% { opacity: 0.75; } 100% { opacity: 0; } }
+        #goldFlash {
+            position: fixed; inset: 0; z-index: 350; pointer-events: none;
+            background: radial-gradient(ellipse at center, rgba(255,215,0,0.6) 0%, rgba(255,215,0,0.2) 55%, transparent 100%);
+            opacity: 0;
+        }
+        #goldFlash.flash { animation: goldFlashAnim 0.12s ease-out forwards; }
+        @keyframes goldFlashAnim { 0% { opacity: 1; } 100% { opacity: 0; } }
+        @keyframes screenShake {
+            0%, 100% { transform: translate(0,0); }
+            20% { transform: translate(-4px,3px); }
+            40% { transform: translate(3px,-4px); }
+            60% { transform: translate(-3px,-2px); }
+            80% { transform: translate(4px,2px); }
+        }
+        #gameCanvas.shake { animation: screenShake 0.3s linear; }
+        #messageDisplay.big { font-size: 13px; padding: 10px 20px; max-width: 80vw; white-space: normal; text-align: center; }
+
+        .portrait-hint {
+            display: none; font-size: 7px; color: #8080A0; letter-spacing: 1px;
+            margin-top: 10px; animation: portraitPulse 1.6s ease-in-out infinite;
+        }
+        @keyframes portraitPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        @media (orientation: portrait) and (max-width: 600px) {
+            .portrait-hint { display: block; }
         }
     </style>
 </head>
@@ -610,6 +656,7 @@
                     <span>W A S D</span> or <span>ARROWS</span> — move &nbsp;|&nbsp;
                     <span>Q / E</span> — strafe &nbsp;|&nbsp; <span>M</span> — map
                 </div>
+                <div class="portrait-hint" id="portraitHint">📱 ROTATE FOR BEST VIEW</div>
             </div>
         </div>
 
@@ -636,6 +683,7 @@
                     </div>
                     <div class="hud-right">
                         <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
+                            <button id="muteBtn" class="hud-pause-btn">🔊 SOUND</button>
                             <button id="pauseBtn" class="hud-pause-btn">⏸ PAUSE</button>
                             <div class="hud-cd-count" id="scoreDisplay">0 / 5</div>
                         </div>
@@ -675,7 +723,10 @@
             <div id="initialsForm">
                 <div class="go-initials-label">ENTER YOUR INITIALS</div>
                 <input type="text" id="initialsInput" maxlength="3" placeholder="AAA">
-                <button id="submitScoreButton" class="pixel-button">SAVE SCORE</button>
+                <div style="display:flex; gap:10px;">
+                    <button id="submitScoreButton" class="pixel-button">SAVE SCORE</button>
+                    <button id="skipScoreButton" class="pixel-button secondary">SKIP</button>
+                </div>
             </div>
 
             <div id="scoreboardSection">
@@ -703,7 +754,7 @@
     <!-- WIN overlay -->
     <div id="winOverlay">
         <div class="win-title">YOU WIN!</div>
-        <div class="win-cleared">ALL 10 LEVELS CLEARED</div>
+        <div class="win-cleared">ALL 20 LEVELS CLEARED</div>
         <div class="win-divider"></div>
         <div class="win-bonus" id="winBonusText"></div>
     </div>
@@ -717,6 +768,11 @@
 
     <!-- Green flash on MILLO letter collect -->
     <div id="milloGreenFlash"></div>
+
+    <!-- Hazard / pickup screen feedback -->
+    <div id="gooVignette"></div>
+    <div id="curseFlash"></div>
+    <div id="goldFlash"></div>
 
     <!-- MILLO letter collect overlay -->
     <div id="milloLetterOverlay">
@@ -747,7 +803,7 @@
     <!-- Mobile Controls -->
     <div id="onScreenControls">
         <div id="mobileTopRow">
-            <button id="mobilePauseBtn" class="control-button" id="mobilePauseBtn">⏸</button>
+            <button id="mobilePauseBtn" class="control-button">⏸</button>
         </div>
         <div id="mobileBottomRow">
             <div id="leftControls" class="control-cluster">
@@ -771,7 +827,7 @@
 
     <script>
         // ── LOCAL SCOREBOARD ──
-        const LOCAL_SCORES_KEY = 'htw_scores_v1';
+        const LOCAL_SCORES_KEY = 'htw_scores_v2';
         function getLocalScores() {
             try { return JSON.parse(localStorage.getItem(LOCAL_SCORES_KEY)) || []; } catch(e) { return []; }
         }
@@ -780,7 +836,7 @@
             scores.push(entry);
             scores.sort((a, b) => b.score - a.score);
             scores.splice(10);
-            localStorage.setItem(LOCAL_SCORES_KEY, JSON.stringify(scores));
+            try { localStorage.setItem(LOCAL_SCORES_KEY, JSON.stringify(scores)); } catch(e) {}
             return scores;
         }
 
@@ -833,6 +889,11 @@
             mloProgressRow:          document.getElementById('mloProgressRow'),
             mloCount:                document.getElementById('mloCount'),
             milloCompleteOverlay:    document.getElementById('milloCompleteOverlay'),
+            muteBtn:                 document.getElementById('muteBtn'),
+            skipScoreButton:         document.getElementById('skipScoreButton'),
+            gooVignette:             document.getElementById('gooVignette'),
+            curseFlash:              document.getElementById('curseFlash'),
+            goldFlash:               document.getElementById('goldFlash'),
         };
 
         const audio = {
@@ -849,6 +910,34 @@
 
         function playMusic(t) { [audio.menu, audio.gameplay, audio.end].forEach(a => a?.pause()); t?.play().catch(()=>{}); }
         function playSound(t) { if (!t) return; t.currentTime = 0; t.play().catch(()=>{}); }
+
+        // ── MUTE ──
+        let muted = localStorage.getItem('htw_muted') === '1';
+        function applyMuteState() {
+            Object.values(audio).forEach(a => { if (a) a.muted = muted; });
+            if (ui.muteBtn) ui.muteBtn.textContent = muted ? '🔇 MUTE' : '🔊 SOUND';
+        }
+        function toggleMute() {
+            muted = !muted;
+            try { localStorage.setItem('htw_muted', muted ? '1' : '0'); } catch(e) {}
+            applyMuteState();
+        }
+
+        // ── CRITICAL-TIME AUDIO HEARTBEAT ──
+        let audioCtx = null;
+        function playHeartbeat(secLeft) {
+            if (muted) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 300 + (10 - secLeft) * 40;
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+            } catch(e) {}
+        }
 
         // ── RENDERER SETUP ──
         const RENDER_W = 160, RENDER_H = 120;
@@ -895,16 +984,18 @@
                 }
             }
 
-            // Items
-            for (const item of [...powerups, ...hazards, ...ufos]) {
+            // Items — default map shows walls + player only.
+            // Pathfinder reveals CDs; MILLO letters and UFOs are always shown; hazards never show.
+            for (const item of [...powerups, ...ufos]) {
                 if (!item.active) continue;
+                if (item.type === 'cd' && !FX.pathfinder.active) continue;
+                if (item.type !== 'cd' && item.type !== 'millo' && item.type !== 'ufo') continue;
                 const tx = Math.floor(item.x / TILE) - ox, ty = Math.floor(item.y / TILE) - oy;
                 if (tx < 0 || tx >= MMAP_VW || ty < 0 || ty >= MMAP_VH) continue;
                 const cx = tx * MMAP_TILE + MMAP_TILE / 2, cy = ty * MMAP_TILE + MMAP_TILE / 2;
                 mc.fillStyle = item.type === 'cd' ? (item.golden ? '#FFD700' : '#FFFF55') :
                                item.type === 'millo' ? '#FFFFFF' :
-                               item.type === 'ufo' ? '#FF91AF' :
-                               (item.type === 'curse' || item.type === 'goo') ? '#FF4136' : '#00E5FF';
+                               item.type === 'ufo' ? '#FF91AF' : '#00E5FF';
                 mc.beginPath();
                 mc.arc(cx, cy, item.type === 'millo' ? MMAP_TILE * 0.5 : MMAP_TILE * 0.38, 0, Math.PI * 2);
                 mc.fill();
@@ -954,20 +1045,21 @@
         const MILLO_COLORS = ['#00FF41', '#00FF41', '#00FF41', '#00FF41', '#00FF41'];
 
         let milloCollected = [false, false, false, false, false];
-        let milloUnlocked  = false;
+        let milloUnlocked  = false;               // this-session flag (drives ceiling/UFOs this run)
+        let milloEverUnlocked = localStorage.getItem('htw_millo_unlocked') === '1'; // persists across runs
         let milloLevelMap  = {}; // { levelIdx: letterIdx } assigned each game
 
-        // Called once at startGame() — resets letters and places all 5 across levels 0-19
+        // Called once at startGame() — resets letters and places one per 4-level band (0-3,4-7,8-11,12-15,16-19)
         function rollMilloSession() {
             milloCollected = [false, false, false, false, false];
             milloUnlocked  = false;
             milloLevelMap  = {};
-            const levels = Array.from({length: 20}, (_, i) => i);
-            for (let i = levels.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [levels[i], levels[j]] = [levels[j], levels[i]];
+            const bandSize = 4;
+            for (let letterIdx = 0; letterIdx < 5; letterIdx++) {
+                const bandStart = letterIdx * bandSize;
+                const level = bandStart + Math.floor(Math.random() * bandSize);
+                milloLevelMap[level] = letterIdx;
             }
-            [0, 1, 2, 3, 4].forEach(letterIdx => { milloLevelMap[levels[letterIdx]] = letterIdx; });
         }
 
         function spawnMilloInLevel(letterIdx) {
@@ -1013,11 +1105,16 @@
             playSound(audio.goldenCd);
             spawnParticles(item.x, item.y, color + 'CC');
             showMilloLetterOverlay(idx);
-            // If all 5 collected mid-run, activate baker-miller pink sky + UFOs
+            // If all 5 collected mid-run, activate baker-miller pink sky + UFOs + the big celebration
             if (milloCollected.every(Boolean)) {
                 milloUnlocked = true;
+                if (!milloEverUnlocked) {
+                    milloEverUnlocked = true;
+                    try { localStorage.setItem('htw_millo_unlocked', '1'); } catch(e) {}
+                }
                 textures.milloCeiling = mkMilloSky();
                 spawnUFOs();
+                setTimeout(showMilloComplete, 1200);
             }
         }
 
@@ -1125,6 +1222,23 @@
 
         let currentLevelData = null;
 
+        // ── TUNING ── all balance constants live here so they can be adjusted in one place.
+        const TUNING = {
+            initTime: 40,
+            moveSpeed: TILE * 6.7,       // px/sec
+            turnSpeed: 3.6,              // rad/sec
+            speedMultCap: 1.45,
+            speedMultPerLevel: 0.03,
+            gooSlowFactor: 0.38,
+            cdBonusBase: 3, cdBonusMazeDiv: 8,
+            goldBonus: 10,
+            clearBonusBase: 8, clearBonusMazeDiv: 4,
+            baseCdScore: 100, goldenCdScore: 500,
+            comboCap: 4, comboWindowMs: 5000,
+            levelClearBase: 250, levelClearPerLevel: 50,
+            winTimeBonusPerSec: 25,
+        };
+
         function getLevelData(idx) {
             // Golden-angle hue rotation gives maximally distinct colors each level
             const wallHue  = (idx * 137 + 330) % 360;
@@ -1143,21 +1257,23 @@
             const fogG = Math.round(Math.max(0, Math.cos(rad - 2.094) * 9 + 7));
             const fogB = Math.round(Math.max(0, Math.cos(rad + 2.094) * 13 + 12));
 
-            // Scaling difficulty across 20 levels
-            const targetCDs = 5 + idx;                                   // grows by 1 per level
-            const cdBonus   = Math.max(4, 7 - Math.floor(idx / 5));     // 7s early, tapers to 4s
-            const goldBonus = 10;                                        // fixed +10s per golden CD
-            const clearBonus= Math.max(8, 22 - Math.floor(idx / 2));    // starts at 22s, floors at 8s
-
             // Maze grows every 2 levels
             const grow = Math.floor(idx / 2);
             let mW = Math.min(25, 13 + grow * 2);
             let mH = Math.min(21, 11 + grow * 2);
             if (mW % 2 === 0) mW++; if (mH % 2 === 0) mH++;
 
+            // Difficulty comes from maze size / CD count / hazard density — NOT accelerated time.
+            // Timer always drains at 1s per real second (see gameLoop). Player gets faster instead.
+            const targetCDs   = 4 + idx; // level 1 needs 4, grows by 1 per level
+            const cdBonus     = Math.round(TUNING.cdBonusBase + (mW + mH) / TUNING.cdBonusMazeDiv);
+            const goldBonus   = TUNING.goldBonus;
+            const clearBonus  = Math.round(TUNING.clearBonusBase + (mW + mH) / TUNING.clearBonusMazeDiv);
+            const speedMult   = Math.min(TUNING.speedMultCap, 1 + idx * TUNING.speedMultPerLevel);
+
             const name = LEVEL_NAMES[idx % LEVEL_NAMES.length] || `SECTOR ${idx + 1}`;
             return { colors:{w1,w2,f1,f2,c1,c2}, fog:{r:fogR,g:fogG,b:fogB},
-                     targetCDs, cdBonus, goldBonus, clearBonus, mazeW:mW, mazeH:mH, name };
+                     targetCDs, cdBonus, goldBonus, clearBonus, speedMult, mazeW:mW, mazeH:mH, name };
         }
 
         // ── MAZE GENERATOR ──
@@ -1165,7 +1281,11 @@
             const grid = Array.from({length: rows}, () => new Array(cols).fill(1));
             const carve = (x, y) => {
                 grid[y][x] = 0;
-                const dirs = [[0,-2],[0,2],[-2,0],[2,0]].sort(() => Math.random() - 0.5);
+                const dirs = [[0,-2],[0,2],[-2,0],[2,0]];
+                for (let i = dirs.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
+                }
                 for (const [dx, dy] of dirs) {
                     const nx = x+dx, ny = y+dy;
                     if (nx>0&&nx<cols-1&&ny>0&&ny<rows-1&&grid[ny][nx]===1) { grid[y+dy/2][x+dx/2]=0; carve(nx,ny); }
@@ -1185,25 +1305,42 @@
         }
 
         // ── GAME STATE ──
-        let lvlIndex = 0, loopMult = 1;
+        let lvlIndex = 0, speedMult = 1;
         let mapData = [], MAP_W, MAP_H;
         let player = {x:0, y:0, angle:0};
-        const MOVE_SPEED = TILE / 9, TURN_SPEED = 0.06;
         let score = 0, cdsThisLevel = 0, timeLeft = 30;
-        const INIT_TIME = 40;
-        let gameRunning = false, gamePaused = false, timerInterval = null, rafId = null;
+        let gameRunning = false, gamePaused = false, gameStarting = false, rafId = null;
         let textures = {}, particles = [], powerups = [], hazards = [], ufos = [];
         let lastCdTime = 0, cdCombo = 0;
-        // score multiplier: 2x when MILLO unlocked
-        const getScoreMult = () => milloUnlocked ? 2 : 1;
+        let lastFrameTime = 0;
+        let turnVelocity = 0, walkPhase = 0, playerMoving = false;
+        let tooltipFreezeMs = 0;
+        let lastHudSecond = null;
+        const seenTypes = new Set();
+        // score multiplier: 2x once MILLO is unlocked (persists across runs after first unlock)
+        const getScoreMult = () => (milloUnlocked || milloEverUnlocked) ? 2 : 1;
 
         const FX = {
-            freeze:     {active:false,id:null,dur:6000, startTime:0, name:"TIME FROZEN",  col:"#ADD8E6"},
-            pathfinder: {active:false,id:null,dur:10000,startTime:0, name:"BEACON",       col:"#FFD700"},
-            xray:       {active:false,id:null,dur:8000, startTime:0, name:"X-RAY",        col:"#40E0D0"},
-            curse:      {active:false,id:null,dur:7000, startTime:0, name:"CURSED",       col:"#9B30FF"},
-            goo:        {active:false,id:null,dur:4000, startTime:0, name:"GOO SLOW",     col:"#7B9F35"},
+            freeze:     {active:false, remainingMs:0, dur:6000,  name:"TIME FROZEN", col:"#ADD8E6"},
+            pathfinder: {active:false, remainingMs:0, dur:10000, name:"BEACON",      col:"#FFD700"},
+            xray:       {active:false, remainingMs:0, dur:8000,  name:"X-RAY",       col:"#40E0D0"},
+            curse:      {active:false, remainingMs:0, dur:7000,  name:"CURSED",      col:"#9B30FF"},
+            goo:        {active:false, remainingMs:0, dur:4000,  name:"GOO SLOW",    col:"#7B9F35"},
         };
+
+        const TOOLTIPS = {
+            curse:      'CURSED IDOL — vision shrinks for 7s. Avoid the purple idols!',
+            goo:        'GOO PUDDLE — slows you down. Step around it!',
+            freeze:     'TIME FREEZE — stops the clock until your next CD!',
+            pathfinder: 'BEACON — reveals CDs on your minimap!',
+            xray:       'X-RAY — see through walls for a while!',
+        };
+        function triggerTooltip(type) {
+            if (seenTypes.has(type) || !TOOLTIPS[type]) return;
+            seenTypes.add(type);
+            tooltipFreezeMs = 2500;
+            showMsg(TOOLTIPS[type], true);
+        }
 
         // ── TEXTURE GENERATION ──
         function mkTex(c1,c2,chk=false,wall=false) {
@@ -1266,7 +1403,23 @@
             const count=3+Math.floor(Math.random()*3);
             for(let i=0;i<count&&tiles.length;i++){
                 const idx=Math.floor(Math.random()*tiles.length); const t=tiles.splice(idx,1)[0];
-                ufos.push({x:(t.x+.5)*TILE,y:(t.y+.5)*TILE,active:true,type:'ufo'});
+                ufos.push({x:(t.x+.5)*TILE,y:(t.y+.5)*TILE,active:true,type:'ufo',heading:Math.random()*Math.PI*2});
+            }
+        }
+
+        function updateUFOs(dt){
+            const speed = TILE * 1.2;
+            for (const u of ufos) {
+                if (!u.active) continue;
+                if (u.heading === undefined) u.heading = Math.random()*Math.PI*2;
+                const nx = u.x + Math.cos(u.heading)*speed*dt;
+                const ny = u.y + Math.sin(u.heading)*speed*dt;
+                const tx = Math.floor(nx/TILE), ty = Math.floor(ny/TILE);
+                if (tx>=0 && tx<MAP_W && ty>=0 && ty<MAP_H && mapData[ty][tx]===0) {
+                    u.x = nx; u.y = ny;
+                } else {
+                    u.heading = Math.random()*Math.PI*2;
+                }
             }
         }
 
@@ -1293,10 +1446,15 @@
         }
 
         // ── SPAWN ──
-        function emptyTiles(){
+        function isTileOccupied(tx, ty) {
+            for (const e of powerups) if (e.active && Math.floor(e.x/TILE)===tx && Math.floor(e.y/TILE)===ty) return true;
+            for (const e of hazards)  if (e.active && Math.floor(e.x/TILE)===tx && Math.floor(e.y/TILE)===ty) return true;
+            return false;
+        }
+        function emptyTiles(minDist = TILE*2){
             const e=[];
             for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++)
-                if(mapData[y][x]===0 && Math.hypot((x+.5)*TILE-player.x,(y+.5)*TILE-player.y)>TILE*2) e.push({x,y});
+                if(mapData[y][x]===0 && !isTileOccupied(x,y) && Math.hypot((x+.5)*TILE-player.x,(y+.5)*TILE-player.y)>minDist) e.push({x,y});
             return e;
         }
         function spawnOne(list,type,max=1){
@@ -1306,11 +1464,16 @@
             list.push({x:(p.x+.5)*TILE, y:(p.y+.5)*TILE, active:true, type});
         }
         function spawnCycle(){
+            // Drop dead (collected) entries so they don't accumulate within a level
+            powerups = powerups.filter(p=>p.active);
+            hazards  = hazards.filter(h=>h.active);
+            ufos     = ufos.filter(u=>u.active);
+
             const d = currentLevelData;
             const rem = d.targetCDs - cdsThisLevel;
             const activeCDs = powerups.filter(p=>p.type==='cd'&&p.active).length;
             for(let i=activeCDs; i<Math.min(3,rem); i++){
-                const golden=Math.random()<0.2; const tiles=emptyTiles();
+                const golden=Math.random()<0.2; const tiles=emptyTiles(TILE*4);
                 if(tiles.length){ const p=tiles[Math.floor(Math.random()*tiles.length)]; powerups.push({x:(p.x+.5)*TILE,y:(p.y+.5)*TILE,active:true,type:'cd',golden}); }
             }
             // Powerups scale in slowly: none in lvl 1-2, rare in 3-6, normal from 7+
@@ -1330,20 +1493,31 @@
 
         // ── HUD ──
         let msgTimer = null;
-        function showMsg(msg){ ui.messageDisplay.textContent=msg; ui.messageDisplay.classList.add('visible'); clearTimeout(msgTimer); msgTimer=setTimeout(()=>ui.messageDisplay.classList.remove('visible'),2400); }
+        function showMsg(msg, big=false){
+            ui.messageDisplay.textContent=msg;
+            ui.messageDisplay.classList.add('visible');
+            ui.messageDisplay.classList.toggle('big', big);
+            clearTimeout(msgTimer);
+            msgTimer=setTimeout(()=>ui.messageDisplay.classList.remove('visible'),2400);
+        }
 
-        function updateHUD(){
-            const d = currentLevelData;
-            ui.timerDisplay.textContent = `${Math.ceil(timeLeft)}s`;
-            ui.scoreDisplay.textContent = `${cdsThisLevel} / ${d.targetCDs}`;
-            ui.levelDisplay.textContent = `LVL ${lvlIndex+1}`;
-            ui.speedDisplay.textContent = `${loopMult.toFixed(1)}x SPEED`;
-            if (milloUnlocked) ui.speedDisplay.textContent += ' · ★2x';
-
-            const pct = Math.min(100, Math.max(0, (timeLeft / INIT_TIME) * 100));
+        // Cheap per-frame update: progress bar + critical pulse only.
+        function updateTimerBar(){
+            const pct = Math.min(100, Math.max(0, (timeLeft / TUNING.initTime) * 100));
             ui.timerProgressBar.style.width = `${pct}%`;
             ui.timerProgressBar.style.backgroundColor = pct<25?'#FF4136':pct<55?'#FFDC00':'#2ECC40';
             ui.timerGroup.classList.toggle('critical', timeLeft <= 10);
+        }
+
+        // Full HUD refresh — event-driven, plus once per second from the game loop (see tickHUD).
+        function updateHUD(){
+            const d = currentLevelData;
+            ui.timerDisplay.textContent = `${Math.max(0, Math.ceil(timeLeft))}s`;
+            ui.scoreDisplay.textContent = `${cdsThisLevel} / ${d.targetCDs}`;
+            ui.levelDisplay.textContent = `LVL ${lvlIndex+1}`;
+            ui.speedDisplay.textContent = `${speedMult.toFixed(2)}x SPEED`;
+            if (milloUnlocked || milloEverUnlocked) ui.speedDisplay.textContent += ' · ★2x';
+            updateTimerBar();
 
             // CD dots (up to 12 visible)
             ui.cdDotsRow.innerHTML = '';
@@ -1357,40 +1531,82 @@
             // Effect badges with countdown
             ui.activeEffectsBar.innerHTML = ''; let any = false;
             for (const k in FX) {
-                if (!FX[k].active) continue; any = true;
-                const elapsed = FX[k].startTime ? Date.now() - FX[k].startTime : 0;
-                const remPct  = Math.max(0, 100 - (elapsed / FX[k].dur) * 100);
-                const secLeft = Math.max(0, Math.ceil((FX[k].dur - elapsed) / 1000));
+                const fx = FX[k];
+                if (!fx.active) continue; any = true;
+                let secText, remPct;
+                if (k === 'freeze') { secText = '∞'; remPct = 100; }
+                else { remPct = Math.max(0, (fx.remainingMs / fx.dur) * 100); secText = `${Math.max(0, Math.ceil(fx.remainingMs / 1000))}s`; }
                 const b = document.createElement('div');
-                b.className = 'effect-badge'; b.style.backgroundColor = FX[k].col;
-                b.innerHTML = `<span class="fx-name">${FX[k].name}</span><span class="fx-secs">${secLeft}s</span><div class="fx-bar" style="width:${remPct}%"></div>`;
+                b.className = 'effect-badge'; b.style.backgroundColor = fx.col;
+                b.innerHTML = `<span class="fx-name">${fx.name}</span><span class="fx-secs">${secText}</span><div class="fx-bar" style="width:${remPct}%"></div>`;
                 ui.activeEffectsBar.appendChild(b);
             }
             ui.activeEffectsBar.classList.toggle('has-effects', any);
         }
 
-        function activateFX(type){
-            if(FX[type].id) clearTimeout(FX[type].id);
-            FX[type].active = true; FX[type].startTime = Date.now();
-            if(type === 'freeze'){
-                // Stays active until next CD collected — no timeout
-                FX[type].id = null;
-            } else {
-                FX[type].id = setTimeout(()=>{ FX[type].active=false; FX[type].startTime=0; updateHUD(); }, FX[type].dur);
+        // Throttled per-frame tick: cheap bar update every frame, full HUD + heartbeat once per second.
+        function tickHUD(){
+            updateTimerBar();
+            const sec = Math.max(0, Math.ceil(timeLeft));
+            if (sec !== lastHudSecond) {
+                lastHudSecond = sec;
+                updateHUD();
+                if (gameRunning && !gamePaused && timeLeft > 0 && sec >= 1 && sec <= 10) playHeartbeat(sec);
             }
+        }
+
+        function activateFX(type){
+            const fx = FX[type];
+            fx.active = true;
+            fx.remainingMs = (type === 'freeze') ? Infinity : fx.dur;
+            if (type === 'goo') ui.gooVignette.classList.add('active');
+            if (type === 'curse') triggerCurseFeedback();
+            triggerTooltip(type);
             updateHUD();
         }
-        function clearFX(){ for(const k in FX){ FX[k].active=false; FX[k].startTime=0; clearTimeout(FX[k].id); } }
+        function clearFX(){
+            for (const k in FX) { FX[k].active = false; FX[k].remainingMs = 0; }
+            ui.gooVignette.classList.remove('active');
+        }
+        // Decrements active FX durations by dt — replaces setTimeout so pausing truly freezes effects.
+        function updateFX(dt){
+            for (const k in FX) {
+                const fx = FX[k];
+                if (!fx.active || k === 'freeze') continue; // freeze has no duration — cleared on next CD
+                fx.remainingMs -= dt * 1000;
+                if (fx.remainingMs <= 0) {
+                    fx.active = false; fx.remainingMs = 0;
+                    if (k === 'goo') ui.gooVignette.classList.remove('active');
+                    updateHUD();
+                }
+            }
+        }
 
-        function spawnParticles(x,y,col){
-            for(let i=0;i<18;i++) particles.push({x,y,size:Math.random()*2.5+1,vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2,color:col,alpha:1,life:35});
+        function triggerCurseFeedback(){
+            ui.curseFlash.classList.remove('flash'); void ui.curseFlash.offsetWidth; ui.curseFlash.classList.add('flash');
+            ui.mainCanvas.classList.remove('shake'); void ui.mainCanvas.offsetWidth; ui.mainCanvas.classList.add('shake');
+            setTimeout(()=>ui.mainCanvas.classList.remove('shake'), 300);
+        }
+        function triggerGoldFlash(){
+            ui.goldFlash.classList.remove('flash'); void ui.goldFlash.offsetWidth; ui.goldFlash.classList.add('flash');
+        }
+
+        function spawnParticles(x,y,col,count=18){
+            for(let i=0;i<count;i++) particles.push({x,y,size:Math.random()*2.5+1,vx:(Math.random()-.5)*120,vy:(Math.random()-.5)*120,color:col,alpha:1,life:0.6});
+        }
+        function updateParticles(dt){
+            for(let i=particles.length-1;i>=0;i--){
+                const p=particles[i];
+                p.x+=p.vx*dt; p.y+=p.vy*dt; p.alpha-=2.4*dt; p.life-=dt;
+                if(p.life<=0||p.alpha<=0) particles.splice(i,1);
+            }
         }
 
         // ── LEVEL LOADING ──
         function loadLevel(idx){
             lvlIndex = idx;
-            loopMult = 1 + idx * 0.1; // 10% faster per level
             currentLevelData = getLevelData(idx);
+            speedMult = currentLevelData.speedMult;
 
             mapData = generateMaze(currentLevelData.mazeW, currentLevelData.mazeH);
             MAP_W = mapData[0].length; MAP_H = mapData.length;
@@ -1414,12 +1630,17 @@
             gameRunning = false;
             const d = currentLevelData;
             const bonus = d.clearBonus;
+            const mult = getScoreMult();
+            const clearAward = Math.round((TUNING.levelClearBase + TUNING.levelClearPerLevel * (lvlIndex+1)) * mult);
+            score += clearAward;
             timeLeft += bonus;
+            playSound(audio.goldenCd);
 
             // ── WIN: all 20 levels cleared ──
             if (lvlIndex >= 19) {
                 ui.transitionTitle.textContent    = 'LVL 20 CLEAR!';
-                ui.transitionSubtitle.textContent = `+${bonus}s BONUS`;
+                ui.transitionTitle.style.color    = d.colors.w1;
+                ui.transitionSubtitle.textContent = `+${bonus}s BONUS · +${clearAward} PTS`;
                 ui.transitionGoal.textContent     = '★ YOU BEAT THE GAME ★';
                 ui.levelTransitionOverlay.classList.add('active');
                 setTimeout(() => {
@@ -1430,7 +1651,8 @@
             }
 
             ui.transitionTitle.textContent    = `LVL ${lvlIndex+1} CLEAR`;
-            ui.transitionSubtitle.textContent = `+${bonus}s TIME BONUS`;
+            ui.transitionTitle.style.color    = d.colors.w1;
+            ui.transitionSubtitle.textContent = `+${bonus}s TIME BONUS · +${clearAward} PTS`;
             ui.transitionGoal.textContent     = 'PREPARE...';
             ui.levelTransitionOverlay.classList.add('active');
 
@@ -1438,11 +1660,13 @@
                 loadLevel(lvlIndex + 1);
                 const nd = currentLevelData;
                 ui.transitionTitle.textContent    = `LEVEL ${lvlIndex+1}`;
+                ui.transitionTitle.style.color    = nd.colors.w1;
                 ui.transitionSubtitle.textContent = nd.name;
-                ui.transitionGoal.textContent     = `COLLECT ${nd.targetCDs} CDs · SPEED ${loopMult.toFixed(1)}x`;
+                ui.transitionGoal.textContent     = `COLLECT ${nd.targetCDs} CDs · SPEED ${speedMult.toFixed(2)}x`;
                 setTimeout(() => {
                     ui.levelTransitionOverlay.classList.remove('active');
                     gameRunning = true;
+                    lastFrameTime = 0;
                     if(rafId) cancelAnimationFrame(rafId);
                     rafId = requestAnimationFrame(gameLoop);
                 }, 1500);
@@ -1483,45 +1707,46 @@
 
         function triggerGameWin() {
             const timeBonus = Math.floor(timeLeft);
-            score += timeBonus * getScoreMult();
-            const milloBonus = milloCollected.every(Boolean);
+            score += timeBonus * TUNING.winTimeBonusPerSec * getScoreMult();
 
             showWinCelebration(timeBonus);
 
-            if (milloBonus) {
-                // Win celebration → MILLO overlay → game over
-                setTimeout(() => {
-                    ui.winOverlay.classList.remove('active');
-                    ui.winOverlay.querySelectorAll('.mcc-star,.win-flash').forEach(el => el.remove());
-                    showMilloComplete();
-                }, 4500);
-                setTimeout(() => gameOver(true, timeBonus), 12000);
-            } else {
-                // Win celebration → game over
-                setTimeout(() => {
-                    ui.winOverlay.classList.remove('active');
-                    ui.winOverlay.querySelectorAll('.mcc-star,.win-flash').forEach(el => el.remove());
-                    gameOver(true, timeBonus);
-                }, 5500);
-            }
+            // MILLO's own SECRET UNLOCKED overlay already fired mid-run when the 5th letter
+            // was collected (see collectMilloLetter) — the win celebration just leads to game over.
+            setTimeout(() => {
+                ui.winOverlay.classList.remove('active');
+                ui.winOverlay.querySelectorAll('.mcc-star,.win-flash').forEach(el => el.remove());
+                gameOver(true, timeBonus);
+            }, 5500);
         }
 
         // ── INPUT ──
         const keys = {};
+        let pointerLocked = false;
         function setupInput(){
             window.addEventListener('keydown', e => {
+                if (e.target === ui.initialsInput) return; // don't let 'm'/'p' etc leak into typing initials
                 keys[e.key.toLowerCase()] = true;
-                if (e.key === 'Enter' && !gameRunning && !ui.titleScreen.classList.contains('hidden')) startGame();
+                if (e.key === 'Enter' && !gameRunning && !gameStarting && !ui.titleScreen.classList.contains('hidden')) startGame();
                 if (e.key.toLowerCase() === 'm' && gameRunning) toggleMinimap();
-                if ((e.key.toLowerCase() === 'p' || e.key === 'Escape') && gameRunning) togglePause();
+                if (e.key.toLowerCase() === 'p' && gameRunning) togglePause();
+                if (e.key === 'Escape') {
+                    if (pointerLocked) return; // let the browser exit pointer lock; don't also pause
+                    if (gameRunning) togglePause();
+                }
             });
             ui.pauseBtn.addEventListener('click', () => { if(gameRunning) togglePause(); });
             ui.resumeBtn.addEventListener('click', togglePause);
             ui.mobilePauseBtn.addEventListener('click', () => { if(gameRunning) togglePause(); });
             ui.pauseOverlay.addEventListener('click', e => { if(e.target===ui.pauseOverlay) togglePause(); });
-            window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+            ui.muteBtn.addEventListener('click', toggleMute);
+            window.addEventListener('keyup', e => { if (e.target !== ui.initialsInput) keys[e.key.toLowerCase()] = false; });
+            window.addEventListener('blur', () => {
+                for (const k in keys) keys[k] = false;
+                if (gameRunning && !gamePaused) togglePause();
+            });
             ui.titleScreen.addEventListener('pointerup', () => {
-                if (!gameRunning && !ui.titleScreen.classList.contains('hidden')) startGame();
+                if (!gameRunning && !gameStarting && !ui.titleScreen.classList.contains('hidden')) startGame();
             });
             const bind = (id, k) => {
                 const b = document.getElementById(id); if(!b) return;
@@ -1536,18 +1761,58 @@
             bind('btnTurnL','arrowleft'); bind('btnTurnR','arrowright');
             bind('btnStrafeL','q'); bind('btnStrafeR','e');
             ui.mapToggleBtn.addEventListener('pointerup', e => { e.stopPropagation(); toggleMinimap(); navigator.vibrate?.(12); });
+
+            // Initials input hardening (3.6)
+            ui.initialsInput.addEventListener('input', () => {
+                ui.initialsInput.value = ui.initialsInput.value.toUpperCase().replace(/[^A-Z]/g,'');
+            });
+            ui.initialsInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); ui.submitScoreButton.click(); }
+            });
+            ui.skipScoreButton.addEventListener('click', () => showScoreboard(getLocalScores()));
+
+            setupMouseLook();
         }
 
-        function handleInput(){
+        // Mouse look (2.7) — desktop only, via pointer lock on canvas click.
+        function setupMouseLook(){
+            const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+            if (isTouch) return;
+            ui.mainCanvas.addEventListener('click', () => {
+                if (gameRunning && !gamePaused && document.pointerLockElement !== ui.mainCanvas) {
+                    ui.mainCanvas.requestPointerLock();
+                }
+            });
+            document.addEventListener('pointerlockchange', () => {
+                pointerLocked = document.pointerLockElement === ui.mainCanvas;
+            });
+            document.addEventListener('mousemove', e => {
+                if (!pointerLocked || !gameRunning || gamePaused) return;
+                player.angle += e.movementX * 0.0032;
+                player.angle = (player.angle + Math.PI*2) % (Math.PI*2);
+            });
+        }
+
+        function handleInput(dt){
             if(!gameRunning) return;
-            const spd = FX.goo.active ? MOVE_SPEED*0.38 : MOVE_SPEED;
+            const spd = FX.goo.active ? TUNING.moveSpeed*TUNING.gooSlowFactor : TUNING.moveSpeed;
             let mv=0, st=0;
-            if(keys['arrowup']  ||keys['w']) mv= spd;
-            if(keys['arrowdown']||keys['s']) mv=-spd;
-            if(keys['q']) st=-spd; if(keys['e']) st=spd;
-            if(keys['arrowleft'] ||keys['a']) player.angle-=TURN_SPEED;
-            if(keys['arrowright']||keys['d']) player.angle+=TURN_SPEED;
+            if(keys['arrowup']  ||keys['w']) mv= spd*dt;
+            if(keys['arrowdown']||keys['s']) mv=-spd*dt;
+            if(keys['q']) st=-spd*dt; if(keys['e']) st=spd*dt;
+
+            // Smooth turning: lerp turn velocity toward target over ~80ms so taps allow small adjustments.
+            let turnInput = 0;
+            if(keys['arrowleft'] ||keys['a']) turnInput -= 1;
+            if(keys['arrowright']||keys['d']) turnInput += 1;
+            const targetTurnVel = turnInput * TUNING.turnSpeed;
+            const smoothing = 1 - Math.exp(-dt/0.08);
+            turnVelocity += (targetTurnVel - turnVelocity) * smoothing;
+            player.angle += turnVelocity * dt;
             player.angle=(player.angle+Math.PI*2)%(Math.PI*2);
+
+            playerMoving = (mv !== 0 || st !== 0);
+            if (playerMoving) walkPhase += 9*dt;
 
             const dx=Math.cos(player.angle)*mv-Math.sin(player.angle)*st;
             const dy=Math.sin(player.angle)*mv+Math.cos(player.angle)*st;
@@ -1558,7 +1823,9 @@
             const collect = (list, hazard) => {
                 for(let i=list.length-1;i>=0;i--){
                     const e=list[i];
-                    if(!e.active||Math.hypot(player.x-e.x,player.y-e.y)>=TILE*0.62) continue;
+                    const dist = Math.hypot(player.x-e.x,player.y-e.y);
+                    e._dist = dist; // cached and reused by render()'s sprite pass this same frame
+                    if(!e.active||dist>=TILE*0.62) continue;
                     e.active=false;
                     if(hazard){
                         if(e.type==='curse'){activateFX('curse');showMsg('CURSED! BLINDNESS!');playSound(audio.curse);}
@@ -1568,27 +1835,33 @@
                         const d = currentLevelData, mult = getScoreMult();
                         if(e.type==='cd'){
                             const now=Date.now();
-                            if(now-lastCdTime<5000){cdCombo++;}else{cdCombo=1;} lastCdTime=now;
-                            if(FX.freeze.active){ FX.freeze.active=false; FX.freeze.startTime=0; updateHUD(); }
+                            if(now-lastCdTime<TUNING.comboWindowMs){cdCombo++;}else{cdCombo=1;} lastCdTime=now;
+                            if(FX.freeze.active){ FX.freeze.active=false; FX.freeze.remainingMs=0; updateHUD(); }
+                            const comboMult = Math.min(TUNING.comboCap, cdCombo);
+                            const base = e.golden ? TUNING.goldenCdScore : TUNING.baseCdScore;
+                            const gained = base*comboMult*mult;
+                            score += gained; cdsThisLevel++;
+                            let label = e.golden ? `+${gained} ★ GOLDEN!` : `+${gained} CD`;
+                            if (comboMult >= 2) label += ` ×${comboMult} COMBO!`;
                             if(e.golden){
-                                score+=5*mult; cdsThisLevel++; timeLeft+=d.goldBonus;
+                                timeLeft+=d.goldBonus;
                                 showMsg(`GOLDEN CD! +${d.goldBonus}s!`);
-                                showFloatingScore(`+${5*mult} ★ GOLDEN!`,'#FFD700',(Math.random()-.5)*60);
-                                playSound(audio.goldenCd); spawnParticles(e.x,e.y,'rgba(255,215,0,.85)');
+                                showFloatingScore(label,'#FFD700',(Math.random()-.5)*60);
+                                playSound(audio.goldenCd); spawnParticles(e.x,e.y,'rgba(255,215,0,.85)',36);
+                                triggerGoldFlash();
                             } else {
-                                score+=1*mult; cdsThisLevel++; timeLeft+=d.cdBonus;
+                                timeLeft+=d.cdBonus;
                                 showMsg(`CD FOUND! +${d.cdBonus}s`);
-                                showFloatingScore(`+${1*mult} CD`,'#FFFFAA',(Math.random()-.5)*60);
+                                showFloatingScore(label,'#FFFFAA',(Math.random()-.5)*60);
                                 playSound(audio.cd); spawnParticles(e.x,e.y,'rgba(200,200,255,.85)');
                             }
-                            if(cdCombo>=2) setTimeout(()=>showFloatingScore(`${cdCombo}x COMBO!`,'#FF69B4',(Math.random()-.5)*80),120);
                             updateHUD();
                             if(cdsThisLevel>=d.targetCDs) setTimeout(levelComplete,100);
                             else setTimeout(spawnCycle,120);
                         }
                         else if(e.type==='freeze')    {activateFX('freeze');    showMsg('TIME FROZEN!');   playSound(audio.freeze);    showFloatingScore('⏱ FREEZE!','#ADD8E6');}
                         else if(e.type==='pathfinder'){activateFX('pathfinder');showMsg('BEACON ACTIVE!'); playSound(audio.pathfinder);showFloatingScore('◆ BEACON','#FFD700');}
-                        else if(e.type==='xray')      {activateFX('xray');      showMsg('X-RAY VISION!');  showFloatingScore('◎ X-RAY','#40E0D0');}
+                        else if(e.type==='xray')      {activateFX('xray');      showMsg('X-RAY VISION!');  playSound(audio.cd);        showFloatingScore('◎ X-RAY','#40E0D0');}
                     }
                 }
             };
@@ -1597,39 +1870,58 @@
         }
 
         // ── RENDERER ──
-        function render(){
-            if(!gameRunning) return;
+        // DDA grid-traversal raycaster (2.5): steps tile-by-tile instead of pixel-by-pixel, and `side`
+        // falls out of the algorithm for free (used for directional wall shading, 2.4).
+        function render(force){
+            if(!gameRunning && !force) return;
             const hz=RENDER_H/2;
             oCtx.drawImage(milloUnlocked&&textures.milloCeiling?textures.milloCeiling:textures.ceiling,0,0,RENDER_W,hz);
             oCtx.drawImage(textures.floor,  0,hz,RENDER_W,RENDER_H-hz);
             const {r,g,b}=currentLevelData.fog;
+            const posX=player.x/TILE, posY=player.y/TILE;
 
             for(let i=0;i<RAYS;i++){
                 const ra=player.angle-FOV/2+(i/RAYS)*FOV;
-                const ex=Math.cos(ra),ey=Math.sin(ra);
-                let d=0,hit=false,side=0;
-                while(!hit&&d<TILE*MAP_W){
-                    d++;
-                    const tx=Math.floor((player.x+ex*d)/TILE),ty=Math.floor((player.y+ey*d)/TILE);
-                    if(tx<0||tx>=MAP_W||ty<0||ty>=MAP_H){hit=true;d=TILE*MAP_W;}
-                    else if(mapData[ty][tx]===1){
-                        hit=true;
-                        const a=Math.atan2((player.y+ey*d)-ty*TILE-TILE/2,(player.x+ex*d)-tx*TILE-TILE/2);
-                        side=(a>=-Math.PI*.25&&a<Math.PI*.25)||(a<-Math.PI*.75||a>=Math.PI*.75)?0:1;
-                    }
+                const ex=Math.cos(ra), ey=Math.sin(ra);
+
+                let mapXi=Math.floor(posX), mapYi=Math.floor(posY);
+                const deltaDistX = ex===0 ? 1e30 : Math.abs(1/ex);
+                const deltaDistY = ey===0 ? 1e30 : Math.abs(1/ey);
+                let stepX, stepY, sideDistX, sideDistY;
+                if(ex<0){ stepX=-1; sideDistX=(posX-mapXi)*deltaDistX; } else { stepX=1; sideDistX=(mapXi+1-posX)*deltaDistX; }
+                if(ey<0){ stepY=-1; sideDistY=(posY-mapYi)*deltaDistY; } else { stepY=1; sideDistY=(mapYi+1-posY)*deltaDistY; }
+
+                let side=0, hitWall=false, guard=0;
+                while(!hitWall && guard++<512){
+                    if(sideDistX<sideDistY){ sideDistX+=deltaDistX; mapXi+=stepX; side=0; }
+                    else { sideDistY+=deltaDistY; mapYi+=stepY; side=1; }
+                    if(mapXi<0||mapXi>=MAP_W||mapYi<0||mapYi>=MAP_H){ hitWall=true; break; }
+                    if(mapData[mapYi][mapXi]===1) hitWall=true;
                 }
+
+                let t = side===0 ? (mapXi-posX+(1-stepX)/2)/ex : (mapYi-posY+(1-stepY)/2)/ey;
+                if(!isFinite(t)||t<0) t = MAP_W+MAP_H;
+
+                const d=t*TILE;
                 const cd=d*Math.cos(ra-player.angle); wallDist[i]=cd;
                 const wh=Math.min(RENDER_H,(TILE/cd)*RENDER_H), wt=hz-wh/2;
-                const tx=Math.floor(side?(player.y+ey*d)%TILE:(player.x+ex*d)%TILE);
+                const hitPx=player.x+ex*d, hitPy=player.y+ey*d;
+                const tx=Math.floor((((side?hitPy:hitPx)%TILE)+TILE)%TILE);
+
                 if(FX.xray.active){ oCtx.globalAlpha=0.28; oCtx.drawImage(textures.wall,tx,0,1,TILE,i,wt,1,wh); oCtx.globalAlpha=1; oCtx.strokeStyle='rgba(0,255,255,.35)';oCtx.lineWidth=.5;oCtx.strokeRect(i,wt,1,wh); }
-                else { oCtx.drawImage(textures.wall,tx,0,1,TILE,i,wt,1,wh); const shade=Math.max(.04,1-(cd/(TILE*7))); oCtx.fillStyle=`rgba(${r},${g},${b},${1-shade})`; oCtx.fillRect(i,wt,1,wh); }
+                else {
+                    oCtx.drawImage(textures.wall,tx,0,1,TILE,i,wt,1,wh);
+                    if(side===1){ oCtx.fillStyle='rgba(0,0,0,0.28)'; oCtx.fillRect(i,wt,1,wh); } // directional shading
+                    const shade=Math.max(.04,1-(cd/(TILE*7))); oCtx.fillStyle=`rgba(${r},${g},${b},${1-shade})`; oCtx.fillRect(i,wt,1,wh);
+                }
             }
 
-            // Sprites
+            // Sprites — drawn column-by-column against wallDist for correct per-pixel occlusion (2.6)
             const ents=[...powerups,...hazards,...ufos].filter(e=>e.active);
             ents.sort((a,b)=>Math.hypot(b.x-player.x,b.y-player.y)-Math.hypot(a.x-player.x,a.y-player.y));
             for(const item of ents){
-                const dx=item.x-player.x,dy=item.y-player.y,dist=Math.hypot(dx,dy);
+                const dx=item.x-player.x,dy=item.y-player.y;
+                const dist = item._dist!==undefined ? item._dist : Math.hypot(dx,dy);
                 let sa=(Math.atan2(dy,dx)-player.angle+Math.PI*2)%(Math.PI*2);
                 if(sa>Math.PI)sa-=Math.PI*2;
                 if(Math.abs(sa)>=FOV/1.5||dist<TILE*.1) continue;
@@ -1645,29 +1937,35 @@
                 if(item.type==='millo') sy-=Math.sin(Date.now()/400)*3;
                 if(item.type==='ufo') sy=hz-ss*.8+Math.sin(Date.now()/500+item.x)*4;
                 if(sx+ss<=0||sx>=RENDER_W) continue;
+
                 const proj=dist*Math.cos(sa);
-                const ri=Math.floor(Math.max(0,Math.min(RAYS-1,sx+ss/2)));
-                const vis=FX.xray.active||(FX.pathfinder.active&&item.type==='cd')||item.type==='millo'||item.type==='ufo'||proj<wallDist[ri]+TILE*.1;
-                if(!vis) continue;
+                const alwaysVisible=FX.xray.active||(FX.pathfinder.active&&item.type==='cd')||item.type==='millo'||item.type==='ufo';
+
+                let ds=ss, shadowColor=null, shadowBlur=0;
+                if(FX.pathfinder.active&&item.type==='cd'){ds*=(Math.sin(Date.now()/150)*.2+1);shadowColor='#FFD700';shadowBlur=12;}
+                if(item.type==='millo'){ds*=(Math.sin(Date.now()/300)*.12+1);shadowColor=MILLO_COLORS[item.milloIdx];shadowBlur=15;}
+                if(item.type==='ufo'){shadowColor='#FF91AF';shadowBlur=10;}
+
+                const drawX=sx-(ds-ss)/2, drawY=sy-(ds-ss)/2;
+                const drawH = item.type==='goo' ? ss*.5 : ds;
+                const drawYFinal = item.type==='goo' ? sy : drawY;
+                const colStart=Math.max(0,Math.floor(drawX)), colEnd=Math.min(RAYS-1,Math.ceil(drawX+ds)-1);
+                if(colStart>colEnd) continue;
+
                 oCtx.globalAlpha=Math.max(.18,1-dist/(TILE*15));
-                let ds=ss;
-                if(FX.pathfinder.active&&item.type==='cd'){ds*=(Math.sin(Date.now()/150)*.2+1);oCtx.shadowColor='#FFD700';oCtx.shadowBlur=12;}
-                if(item.type==='millo'){
-                    ds*=(Math.sin(Date.now()/300)*.12+1);
-                    oCtx.shadowColor=MILLO_COLORS[item.milloIdx]; oCtx.shadowBlur=15;
+                if(shadowColor){ oCtx.shadowColor=shadowColor; oCtx.shadowBlur=shadowBlur; }
+
+                for(let col=colStart; col<=colEnd; col++){
+                    if(!alwaysVisible && proj>=wallDist[col]+TILE*.1) continue;
+                    const frac=(col-drawX)/ds;
+                    const srcX=Math.max(0,Math.min(TILE-1,Math.floor(frac*TILE)));
+                    oCtx.drawImage(spr,srcX,0,1,TILE,col,drawYFinal,1,drawH);
                 }
-                if(item.type==='ufo'){
-                    oCtx.shadowColor='#FF91AF'; oCtx.shadowBlur=10;
-                }
-                if(item.type==='goo') oCtx.drawImage(spr,sx,sy,ss,ss*.5);
-                else oCtx.drawImage(spr,sx-(ds-ss)/2,sy-(ds-ss)/2,ds,ds);
                 oCtx.shadowBlur=0; oCtx.globalAlpha=1;
             }
 
-            // Particles
-            for(let i=particles.length-1;i>=0;i--){
-                const p=particles[i]; p.x+=p.vx;p.y+=p.vy;p.alpha-=.04;p.life--;
-                if(p.life<=0||p.alpha<=0){particles.splice(i,1);continue;}
+            // Particles (physics updated separately by updateParticles(dt))
+            for(const p of particles){
                 const dx=p.x-player.x,dy=p.y-player.y,d=Math.hypot(dx,dy);
                 if(d>10){ let sa=(Math.atan2(dy,dx)-player.angle+Math.PI*2)%(Math.PI*2); if(sa>Math.PI)sa-=Math.PI*2; if(Math.abs(sa)<FOV/1.5){ const sx=RENDER_W/2+(sa/(FOV/2))*(RENDER_W/2),sy=hz+(TILE/d*2),ps=Math.max(1,(p.size*TILE)/(d*2)); oCtx.globalAlpha=p.alpha;oCtx.fillStyle=p.color;oCtx.fillRect(sx,sy,ps,ps);oCtx.globalAlpha=1; } }
             }
@@ -1675,7 +1973,7 @@
             // Curse fog
             if(FX.curse.active){ oCtx.fillStyle='rgba(4,0,8,.96)'; oCtx.fillRect(0,0,RENDER_W,RENDER_H); oCtx.globalCompositeOperation='destination-out'; oCtx.beginPath();oCtx.arc(RENDER_W/2,hz+RENDER_H*.05,RENDER_W/5,0,Math.PI*2);oCtx.fill(); oCtx.globalCompositeOperation='source-over'; }
 
-            // Blit to main canvas
+            // Blit to main canvas (with a subtle head-bob offset while moving, 2.8)
             if(!mainCtx) return;
             mainCtx.fillStyle='#000';
             mainCtx.fillRect(0,0,ui.mainCanvas.width,ui.mainCanvas.height);
@@ -1684,7 +1982,8 @@
             let dw,dh;
             if(ch>cw){ dh=ch; dw=dh*asp; } // portrait: fit height, crop sides
             else{ dw=cw; dh=cw/asp; if(dh>ch){dh=ch;dw=dh*asp;} }
-            mainCtx.drawImage(offscreen,(cw-dw)/2,(ch-dh)/2,dw,dh);
+            const bobPx = playerMoving ? Math.sin(walkPhase)*3*(dh/RENDER_H) : 0;
+            mainCtx.drawImage(offscreen,(cw-dw)/2,(ch-dh)/2+bobPx,dw,dh);
 
         }
 
@@ -1695,19 +1994,50 @@
             ui.pauseBtn.textContent = gamePaused ? '▶ RESUME' : '⏸ PAUSE';
             if (gamePaused) {
                 if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+                audio.gameplay?.pause();
             } else {
+                lastFrameTime = 0; // avoid a huge dt jump from time spent paused
                 rafId = requestAnimationFrame(gameLoop);
+                audio.gameplay?.play().catch(()=>{});
             }
         }
 
-        function gameLoop(){
+        // Delta-time game loop (1.2) — all physics/FX/timer are framerate-independent via dt.
+        function gameLoop(now){
             if(!gameRunning || gamePaused) return;
-            handleInput(); render(); renderMinimap(); updateCrosshair();
+            if(!lastFrameTime) lastFrameTime = now;
+            const dt = Math.min((now - lastFrameTime) / 1000, 0.05); // clamp to avoid tab-switch teleports
+            lastFrameTime = now;
+
+            updateFX(dt);
+            if (tooltipFreezeMs > 0) tooltipFreezeMs = Math.max(0, tooltipFreezeMs - dt*1000);
+
+            // Timer drains at exactly 1s per real second — gated only by freeze/overlays/onboarding tooltip.
+            const overlayBlocking = ui.milloLetterOverlay.classList.contains('active') || ui.milloCompleteOverlay.classList.contains('active');
+            const timeDraining = !overlayBlocking && !FX.freeze.active && tooltipFreezeMs<=0;
+            if (timeDraining) timeLeft = Math.max(0, timeLeft - dt);
+
+            handleInput(dt);
+            updateUFOs(dt);
+            updateParticles(dt);
+            render();
+            renderMinimap();
+            updateCrosshair();
+            tickHUD();
+
+            if (timeDraining && timeLeft <= 0) { gameOver(); return; }
+
             rafId = requestAnimationFrame(gameLoop);
         }
 
         // ── GAME FLOW ──
         function startGame(){
+            if (gameStarting || gameRunning) return; // guard against double-tap / tap+Enter race
+            gameStarting = true;
+            for (const k in keys) keys[k] = false;
+            seenTypes.clear();
+            lastHudSecond = null;
+
             ui.titleScreen.classList.add('hidden');
             ui.gameOverScreen.classList.remove('visible');
             ui.gameplayScreen.classList.remove('hidden');
@@ -1721,14 +2051,21 @@
             ui.mainCanvas.style.filter = '';
 
             resizeCanvas(); initMinimap(); minimapVisible = true;
-            score=0; timeLeft=INIT_TIME; gamePaused=false;
+            score=0; timeLeft=TUNING.initTime; gamePaused=false;
+            cdCombo=0; lastCdTime=0;
             ui.pauseOverlay.classList.remove('active');
             ui.pauseBtn.textContent = '⏸ PAUSE';
             rollMilloSession();
 
+            if (!isTouch && !localStorage.getItem('htw_mouselook_hint_shown')) {
+                try { localStorage.setItem('htw_mouselook_hint_shown','1'); } catch(e){}
+                setTimeout(()=>showMsg('CLICK TO ENABLE MOUSE LOOK'), 1800);
+            }
+
             loadLevel(0);
             const d = currentLevelData;
             ui.transitionTitle.textContent    = 'LEVEL 1';
+            ui.transitionTitle.style.color    = d.colors.w1;
             ui.transitionSubtitle.textContent = d.name;
             ui.transitionGoal.textContent     = `COLLECT ${d.targetCDs} CDs · GOOD LUCK!`;
             ui.levelTransitionOverlay.classList.add('active');
@@ -1736,23 +2073,19 @@
             setTimeout(()=>{
                 ui.levelTransitionOverlay.classList.remove('active');
                 gameRunning = true;
+                gameStarting = false;
+                lastFrameTime = 0;
                 playMusic(audio.gameplay);
                 if(rafId) cancelAnimationFrame(rafId);
                 rafId = requestAnimationFrame(gameLoop);
-                clearInterval(timerInterval);
-                timerInterval = setInterval(()=>{
-                    if(!gamePaused&&!FX.freeze.active&&!ui.levelTransitionOverlay.classList.contains('active')&&!ui.milloLetterOverlay.classList.contains('active')){
-                        timeLeft -= loopMult;
-                        if(timeLeft<=0){timeLeft=0;gameOver();}
-                        updateHUD();
-                    }
-                },1000);
             },1600);
         }
 
         function gameOver(win = false, timeBonus = 0){
-            gameRunning = false; gamePaused = false;
-            clearInterval(timerInterval); clearFX();
+            gameRunning = false; gamePaused = false; gameStarting = false;
+            for (const k in keys) keys[k] = false;
+            clearFX();
+            document.exitPointerLock?.();
             ui.pauseOverlay.classList.remove('active');
             clearTimeout(ui.milloLetterOverlay._hideTimer);
             ui.milloLetterOverlay.classList.remove('active');
@@ -1781,6 +2114,8 @@
             playMusic(audio.end);
             ui.initialsForm.style.display='flex';
             ui.scoreboardSection.classList.remove('visible');
+            ui.initialsInput.value = '';
+            ui.initialsInput.focus();
         }
 
         // ── LOCAL SCORES ──
@@ -1803,11 +2138,18 @@
                 ui.scoreboardList.appendChild(li);
             });
         }
-        ui.restartButton.addEventListener('click',()=>{ ui.gameOverScreen.classList.remove('visible'); ui.titleScreen.classList.remove('hidden'); playMusic(audio.menu); });
+        ui.restartButton.addEventListener('click',()=>{
+            ui.gameOverScreen.classList.remove('visible'); ui.titleScreen.classList.remove('hidden'); playMusic(audio.menu);
+            if (milloEverUnlocked) ui.milloTitleBadge.classList.remove('hidden');
+        });
 
-        window.addEventListener('resize',()=>{ if(!ui.gameplayScreen.classList.contains('hidden')){ resizeCanvas(); if(!gameRunning)render(); } });
+        // Repaint on resize even while not running (paused / mid-transition / win overlay) so the
+        // canvas never blanks behind an overlay — render(force=true) skips the gameRunning early-return.
+        window.addEventListener('resize',()=>{ if(!ui.gameplayScreen.classList.contains('hidden')){ resizeCanvas(); render(!gameRunning); } });
 
         // ── INIT ──
+        applyMuteState();
+        if (milloEverUnlocked) ui.milloTitleBadge.classList.remove('hidden');
         setupInput();
         buildSprites();
         document.body.addEventListener('click',()=>{ if(!gameRunning&&!ui.gameOverScreen.classList.contains('visible')) playMusic(audio.menu); },{once:true});
